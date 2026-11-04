@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stax</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Pick the supplements you take and get a weekly timetable built from published absorption research.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="theme-color" content="#f3f6f7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one 720px column; a sticky header with three views (plan, supplements, setup);
+   the plan reads like a dispenser label: a time rail on the left, doses stacked to its right. */
+:root {
+  --bg: #f3f6f7;
+  --surface: #ffffff;
+  --sunk: #e7edef;
+  --ink: #15232b;
+  --muted: #53646d;
+  --line: #cfd9dd;
+  --accent: #0c6b78;
+  --accent-ink: #ffffff;
+  --accent-soft: #d5ecee;
+  --good: #1d7a4c;
+  --good-soft: #dcf0e4;
+  --warn: #9a5b00;
+  --warn-soft: #fbecd2;
+  --bad: #b3261e;
+  --bad-soft: #f9dedc;
+  --neutral-soft: #e4e9ec;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 10px;
+  --step--1: 0.82rem;
+  --step-0: 1rem;
+  --step-1: 1.2rem;
+  --step-2: 1.6rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171b; --surface: #16222a; --sunk: #1d2c35; --ink: #e5eef1; --muted: #9db0b8; --line: #2b3d47;
+    --accent: #5cc3cf; --accent-ink: #062126; --accent-soft: #163a40;
+    --good: #6fd49d; --good-soft: #15352a; --warn: #f0b860; --warn-soft: #3a2c14; --bad: #ff8b82; --bad-soft: #3d1c1a; --neutral-soft: #24333c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171b; --surface: #16222a; --sunk: #1d2c35; --ink: #e5eef1; --muted: #9db0b8; --line: #2b3d47;
+  --accent: #5cc3cf; --accent-ink: #062126; --accent-soft: #163a40;
+  --good: #6fd49d; --good-soft: #15352a; --warn: #f0b860; --warn-soft: #3a2c14; --bad: #ff8b82; --bad-soft: #3d1c1a; --neutral-soft: #24333c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; flex-direction: column; gap: 10px; padding-block: 12px 10px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; line-height: 1; }
+.brand .region { font-size: var(--step--1); color: var(--muted); }
+nav.views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--sunk); padding: 4px; border-radius: 999px; }
+nav.views a { text-align: center; text-decoration: none; color: var(--muted); font-weight: 700; padding: 8px 4px; border-radius: 999px; font-size: 0.95rem; }
+nav.views a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+nav.views .count { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); margin-left: 4px; }
+
+main { padding-block: 18px 48px; display: flex; flex-direction: column; gap: 22px; }
+section.view { display: flex; flex-direction: column; gap: 18px; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); margin: 0; text-wrap: balance; }
+h3 { font-size: var(--step-0); margin: 0; }
+.lead { color: var(--muted); margin: 0; max-width: 62ch; }
+.eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+button, select, input { font: inherit; color: inherit; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: 999px; font-weight: 700; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--accent); padding-inline: 6px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* week strip */
+.week { display: flex; flex-direction: column; gap: 10px; }
+.week-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.week-head .label { font-weight: 700; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.day { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 6px 0 7px; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; min-width: 0; }
+.day .dow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.day .dom { font-family: var(--font-mono); font-size: 1rem; }
+.day .dots { height: 6px; display: flex; gap: 2px; }
+.day .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.day[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.day[aria-pressed="true"] .dow { color: var(--bg); opacity: .8; }
+.day[aria-pressed="true"] .dots i { background: var(--bg); }
+.day.today .dom { text-decoration: underline; text-underline-offset: 3px; }
+
+/* timeline */
+.timeline { display: flex; flex-direction: column; }
+.slot { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; position: relative; padding-bottom: 18px; }
+.slot::before { content: ""; position: absolute; left: 31px; top: 26px; bottom: 0; width: 2px; background: var(--line); }
+.slot:last-child::before { display: none; }
+.slot .when { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.slot .time { font-family: var(--font-mono); font-size: 0.95rem; background: var(--bg); position: relative; z-index: 1; padding-block: 2px; }
+.slot .pin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent); background: var(--bg); position: relative; z-index: 1; }
+.slot.meal .pin { background: var(--accent); }
+.slot .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.slot .slot-label { font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.slot .slot-label .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.meal-note { font-size: 0.92rem; color: var(--ink); background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
+.meal-note .for { color: var(--muted); font-size: 0.82rem; display: block; margin-top: 2px; }
+
+.dose-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.dose-card summary { list-style: none; cursor: pointer; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.dose-card summary::-webkit-details-marker { display: none; }
+.dose-card .name { font-weight: 700; min-width: 0; }
+.dose-card .sub { color: var(--muted); font-size: 0.88rem; grid-column: 1; min-width: 0; }
+.dose-card .chev { grid-row: 1 / span 2; grid-column: 2; color: var(--muted); font-size: 0.8rem; transition: transform .15s; }
+.dose-card[open] .chev { transform: rotate(90deg); }
+.dose-card .detail { border-top: 1px solid var(--line); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 0.93rem; }
+.why { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.why .more { color: var(--muted); font-size: 0.88rem; }
+.src { font-size: 0.82rem; color: var(--muted); }
+.src a { margin-right: 8px; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.higher { background: var(--good-soft); color: var(--good); }
+.chip.similar { background: var(--neutral-soft); color: var(--muted); }
+.chip.lower { background: var(--bad-soft); color: var(--bad); }
+.chip.unclear { background: var(--warn-soft); color: var(--warn); }
+
+/* alerts */
+.alerts { display: flex; flex-direction: column; gap: 8px; }
+.alert { border-radius: var(--radius); padding: 10px 12px 10px 14px; border-left: 4px solid var(--warn); background: var(--warn-soft); }
+.alert.med { border-left-color: var(--accent); background: var(--accent-soft); }
+.alert .title { font-weight: 700; }
+.alert ul { margin: 4px 0 0; padding-left: 18px; }
+.notes { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 0.92rem; margin: 0; padding-left: 18px; }
+
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+/* catalogue */
+.catalogue { display: flex; flex-direction: column; gap: 8px; }
+.supp { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.supp.on { border-color: var(--accent); }
+.supp-head { display: flex; align-items: center; gap: 12px; padding: 12px; }
+.supp-head .txt { flex: 1; min-width: 0; }
+.supp-head .txt .n { font-weight: 700; }
+.supp-head .txt .s { color: var(--muted); font-size: 0.88rem; }
+.switch { position: relative; width: 46px; height: 28px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(18px); }
+.switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.supp-body { border-top: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label, .field .lbl { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+select, input[type="number"], input[type="time"], textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; min-height: 42px; width: 100%; min-width: 0; }
+textarea { font-family: var(--font-mono); font-size: 0.8rem; min-height: 90px; }
+.dose-in { display: flex; gap: 6px; align-items: center; }
+.dose-in input { flex: 1; }
+.dose-in .unit { color: var(--muted); font-size: 0.88rem; white-space: nowrap; }
+.form-note { font-size: 0.9rem; background: var(--sunk); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.help { font-size: 0.82rem; color: var(--muted); }
+
+/* setup */
+#setup-root { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.seg { display: inline-grid; grid-auto-flow: column; gap: 4px; background: var(--sunk); padding: 4px; border-radius: 999px; }
+.seg button { border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.meal-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; }
+.meal-row input[type="time"] { width: 132px; }
+.meal-row .main-pick { grid-column: 1 / -1; padding-left: 28px; margin-top: -4px; }
+.meal-row .mn { font-weight: 700; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+.times { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tchip { display: inline-flex; align-items: center; gap: 2px; background: var(--sunk); border-radius: 999px; padding: 2px 4px 2px 10px; font-family: var(--font-mono); font-size: 0.9rem; }
+.tchip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; font-size: 1rem; line-height: 1; }
+.add-time { display: flex; gap: 6px; }
+.add-time input { width: 120px; }
+.status { font-size: 0.88rem; color: var(--good); min-height: 1.3em; }
+.status.err { color: var(--bad); }
+footer.disc { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 14px; max-width: 62ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 420px) { .slot { grid-template-columns: 54px minmax(0, 1fr); } .slot::before { left: 26px; } }
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Stax</h1><span class="region" id="region-label"></span></div>
+    <nav class="views" aria-label="Views">
+      <a href="#plan" data-view="plan">Plan</a>
+      <a href="#stack" data-view="stack">Supplements<span class="count" id="count"></span></a>
+      <a href="#setup" data-view="setup">Day setup</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="view" id="view-plan" aria-labelledby="h-plan">
+    <h2 id="h-plan" class="sr-only" hidden>Plan</h2>
+    <div id="plan-root"></div>
+  </section>
+
+  <section class="view" id="view-stack" hidden>
+    <div>
+      <h2>Your supplements</h2>
+      <p class="lead">Switch on what you take now. Form and dose are optional: without a dose the plan stays on the cautious side.</p>
+    </div>
+    <div class="catalogue" id="catalogue"></div>
+  </section>
+
+  <section class="view" id="view-setup" hidden>
+    <div>
+      <h2>Your day</h2>
+      <p class="lead">The plan is built around these times. Nothing here leaves your device.</p>
+    </div>
+    <div id="setup-root"></div>
+  </section>
+
+  <footer class="disc">Stax gives timing and absorption information from published research. It is not medical advice and does not suggest what to take or how much. If you take prescription medicine, check with a pharmacist.</footer>
+</main>
+
+<script type="application/json" id="stax-data">{"schemaVersion":1,"datasetVersion":"0.5.0","lastReviewed":"2026-11-03","meta":{"description":"Stax supplement dataset. Ten supplements. Every form rating and every rule points to entries in `sources`.","enums":{"absorption":{"higher":"Absorbed better than the reference form of this supplement","similar":"No meaningful difference from the reference form","lower":"Absorbed worse than the reference form","unclear":"Claims exist but the data are too thin or conflicting to rate"},"evidence":{"strong":"Multiple controlled human studies or a meta-analysis agree","moderate":"At least one decent controlled human study, not yet well replicated","weak":"Small, indirect, or differently-measured studies only","marketing":"Claim circulates commercially with no supporting human data"},"ruleType":{"avoid":"Do not place in the same slot; respect gapHours if given","pair":"Bonus for placing in the same slot","doseWarning":"Not a timing rule. Show a warning when the combined daily dose crosses a threshold","medication":"Flag-only. Never scheduled; shown as a warning with the timing gap","dailyNote":"Not a timing rule. An effect on the day's total balance; shown as info, never moves a supplement"},"gapBasis":{"measured":"The gap was tested directly in a study","convention":"The interaction is sourced, but the specific gap length is a common clinical convention, not a measured value"},"withFood":{"required":"Only meal slots","preferred":"Meal slots score higher; waking slot allowed","neutral":"No preference","avoid":"Empty-stomach slots score higher"},"preferredSlots":{"morning":"Any slot before 12:00"},"limitKind":{"UL":"Tolerable upper intake level: the highest daily intake considered unlikely to cause harm","safe-level":"No firm upper limit could be set; this is the highest intake the authority judged safe","guidance":"Not a formal upper limit; an authority's statement that intakes up to this amount are safe","none":"No upper limit has been set, usually because of low toxicity or too little data"}},"solverNotes":["avoid rules are symmetric: a rule on A against B also blocks B against A. Each pair is stored once.","Rules whose `with` target is not in the user's stack are ignored.","Targets listed in `externalRefs` are not yet full dataset entries; they exist so rules can reference them now.","Contexts are fixed anchors from user settings (times of day). A supplement rule pointing at a context blocks a window around each occurrence instead of a slot."],"researchedNoRule":[{"topic":"Coffee or tea and zinc absorption","finding":"No human absorption study found. Claims online trace back to rat studies or unsourced figures. No rule added."},{"topic":"Tea and thiamine (B1)","finding":"Antithiamine claims exist, but the human studies could not be retrieved for verification. No rule added yet."},{"topic":"Caffeine and vitamin D","finding":"Only cell-culture data found. No rule added."}],"timingDefaults":{"defaultAvoidGapHours":2,"defaultAvoidGapBasis":"convention","defaultAvoidGapNote":"Applied to avoid rules that give no gap of their own. Slots can be minutes apart (waking vs breakfast), so 'different slot' alone is not separation.","emptyStomach":{"afterMealMinHours":2,"beforeMealMinHours":1,"basis":"convention","note":"A non-meal slot only counts as empty-stomach if it is at least 2 h after the previous meal and 1 h before the next. Common clinical convention, not a measured value."}},"formTimingNote":"A form may carry `timingOverride`, whose fields replace the supplement's timing fields for that form (e.g. calcium carbonate requires food, citrate does not).","maxPerDoseNote":"`timing.maxPerDose` splits a dose above the threshold across separate times. Only applied when the user entered a dose.","formListing":{"rule":"Only forms with `listed: true` appear in the dropdown. Unlisted forms stay in the data so the reference form and rules remain intact.","extraOptions":{"not-sure":"Uses the reference form for timing and rating; shows a note that checking the label gives a more accurate plan. 'Other / not listed' maps here too.","blend":"Uses the strictest timing among the supplement's listed forms and rates absorption as unclear."}},"regions":{"eu":{"label":"EU","dailyValueLabel":"% NRV","dailyValueName":"EU reference intake (NRV)","limitAuthority":"EFSA"},"us":{"label":"US","dailyValueLabel":"% DV","dailyValueName":"US Daily Value","limitAuthority":"US National Academies"},"note":"The region toggle only changes which reference values are shown and which limits trigger warnings. Timing rules are the same in both."}},"slots":{"note":"Slots are generated by the scheduler from the user's meal, wake, bedtime and drink times. Only slots that end up used are shown.","anchors":["wake","meals","bedtime"]},"externalRefs":{"warfarin-vka":{"kind":"medication","label":"Warfarin and other vitamin K antagonists"},"bisphosphonates":{"kind":"medication","label":"Oral bisphosphonates (e.g. alendronate)"},"quinolone-tetracycline":{"kind":"medication","label":"Quinolone and tetracycline antibiotics"},"penicillamine":{"kind":"medication","label":"Penicillamine"},"levothyroxine":{"kind":"medication","label":"Levothyroxine (thyroid hormone)"},"dolutegravir":{"kind":"medication","label":"Dolutegravir (HIV medication)"},"quinolones":{"kind":"medication","label":"Quinolone antibiotics (e.g. ciprofloxacin)"},"acid-suppressants":{"kind":"medication","label":"Acid-reducing medicines (PPIs such as omeprazole, H2 blockers)"},"metformin":{"kind":"medication","label":"Metformin"}},"supplements":[{"id":"vitamin-d","name":"Vitamin D","aliases":["D3","cholecalciferol","D2","ergocalciferol"],"category":"vitamin","fatSoluble":true,"referenceForm":"d3","defaultForm":"d3","forms":[{"id":"d3","name":"Vitamin D3 (cholecalciferol)","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. Raises blood 25(OH)D more effectively than D2.","sources":["tripkovic2012","tripkovic2017"],"listed":true},{"id":"d2","name":"Vitamin D2 (ergocalciferol)","absorption":"lower","evidence":"strong","note":"Less effective at raising 25(OH)D. The 2012 meta-analysis found the gap clearest with large bolus doses and not significant with daily dosing. A later, larger RCT using a daily 15 µg dose found D3 more than twice as effective. Both forms do raise vitamin D status.","sources":["tripkovic2012","tripkovic2017","lanhamnew2017"],"listed":true}],"timing":{"withFood":"preferred","withFoodWhy":"Fat-soluble, so it is absorbed with dietary fat. In one study peak plasma D3 was about 32% higher with a fat-containing meal than a fat-free one. A second study found no difference in 25(OH)D after 90 days between meal conditions, so the long-term benefit of timing is unproven.","withFoodEvidence":"moderate","withFoodSources":["dawsonhughes2015","dawsonhughes2013"],"preferredSlots":[],"frequency":"daily","mealAdvice":{"text":"Make this a meal with some fat in it (eggs, oily fish, nuts, cheese, olive oil). It doesn't need to be a high-fat meal: in one study a low-fat meal absorbed vitamin D slightly better than a high-fat one, and both beat a fat-free meal.","sources":["dawsonhughes2015","dawsonhughes2013"],"key":"fat-meal"}},"rules":[],"notes":["D and K are often sold together. Both are fat-soluble, so the solver will tend to place them in the same meal slot anyway. There is no sourced rule that taking them together improves absorption of either, so no pair rule is stored."],"doseUnit":"µg","reference":{"eu":{"dailyValue":{"amount":5,"sources":["eu-1169"]},"upperLimit":{"kind":"UL","amount":100,"note":"1 µg = 40 IU, so 100 µg = 4,000 IU.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":20,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":100,"note":"1 µg = 40 IU, so 100 µg = 4,000 IU.","sources":["ods-vitd"]}}},"altUnits":{"IU":{"perUnit":0.025,"note":"1 µg = 40 IU","sources":["ods-vitd"]}}},{"id":"vitamin-k","name":"Vitamin K","aliases":["K2","MK-7","MK-4","menaquinone","K1","phylloquinone"],"category":"vitamin","fatSoluble":true,"referenceForm":"k1","defaultForm":"mk7","forms":[{"id":"k1","name":"Vitamin K1 (phylloquinone)","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. Absorbed well from supplements but cleared from the blood within hours.","sources":["schurgers2007","ods-vitk"],"listed":false},{"id":"mk7","name":"Vitamin K2 as MK-7","absorption":"higher","evidence":"moderate","note":"Absorbed at least as well as K1 and has a much longer half-life (about 3 days), so it builds up to stable blood levels with daily intake. Exact timing matters little.","sources":["schurgers2007","sato2012"],"listed":true},{"id":"mk4","name":"Vitamin K2 as MK-4","absorption":"lower","evidence":"weak","note":"At nutritional doses (60 to 420 µg), MK-4 was not detectable in serum, while MK-7 was. Small study (10 women). High-dose pharmaceutical MK-4 is a different situation and is not rated here.","sources":["sato2012"],"listed":true}],"timing":{"withFood":"preferred","withFoodWhy":"Fat-soluble. Absorbed in the small intestine via bile-dependent micelles, like dietary fat.","withFoodEvidence":"moderate","withFoodSources":["ods-vitk"],"preferredSlots":[],"frequency":"daily","slotFlexibility":"high","slotFlexibilityWhy":"MK-7's long half-life means time of day has little effect on blood levels.","mealAdvice":{"text":"Make this a meal with some fat in it, since vitamin K is absorbed together with dietary fat.","sources":["ods-vitk"],"key":"fat-meal"}},"rules":[{"type":"medication","with":"warfarin-vka","severity":"high","why":"Vitamin K directly counteracts warfarin-type anticoagulants. People on these drugs need a consistent vitamin K intake. MK-7 doses of 50 µg/day or more may interfere with anticoagulant treatment in a clinically relevant way.","action":"Do not start, stop or change vitamin K without the prescriber's input.","strength":"strong","sources":["ods-vitk","schurgers2007"]}],"doseUnit":"µg","reference":{"eu":{"dailyValue":{"amount":75,"sources":["eu-1169"]},"upperLimit":{"kind":"none","note":"No upper limit set (insufficient data).","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":120,"sources":["fda-dv"]},"upperLimit":{"kind":"none","note":"No upper limit set because of low potential for toxicity.","sources":["ods-vitk"]}}}},{"id":"magnesium","name":"Magnesium","aliases":["Mg","magnesium glycinate","magnesium citrate","magnesium oxide"],"category":"mineral","fatSoluble":false,"referenceForm":"citrate","defaultForm":"citrate","forms":[{"id":"citrate","name":"Magnesium citrate","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. Dissolves well even without stomach acid and is consistently better absorbed than oxide. Has a laxative effect at higher doses.","sources":["walker2003","lindberg1990","ods-mg"],"listed":true},{"id":"chloride-lactate-aspartate","name":"Magnesium chloride / lactate / aspartate","absorption":"similar","evidence":"moderate","note":"Soluble salts with absorption similar to each other and clearly better than oxide.","sources":["firoz2001","ods-mg"],"listed":false},{"id":"glycinate","name":"Magnesium glycinate (bisglycinate)","absorption":"unclear","evidence":"weak","note":"Widely marketed as the best-absorbed form, but head-to-head data do not show it beating citrate. In a 2003 RCT an amino-acid chelate did not outperform citrate. In a 2024 crossover study bisglycinate did not significantly raise plasma magnesium while citrate did. Often reported as gentler on the gut, but there is little controlled data on that.","sources":["walker2003","pajuelo2024"],"listed":true},{"id":"oxide","name":"Magnesium oxide","absorption":"lower","evidence":"strong","note":"High magnesium content per tablet, but poorly absorbed: about 4% fractional absorption in one study, and no better than placebo over 60 days in another. The large number on the label overstates what you actually absorb.","sources":["firoz2001","walker2003","lindberg1990"],"listed":true}],"timing":{"withFood":"preferred","withFoodWhy":"Mainly for tolerability. High supplemental doses commonly cause diarrhoea, nausea and cramping.","withFoodEvidence":"weak","withFoodSources":["ods-mg"],"preferredSlots":[],"frequency":"daily"},"rules":[{"type":"medication","with":"bisphosphonates","severity":"medium","why":"Magnesium-rich supplements reduce absorption of oral bisphosphonates.","gapHours":2,"gapBasis":"convention","strength":"strong","sources":["ods-mg"]}],"notes":["Very high zinc doses (142 mg/day) interfere with magnesium absorption. This is stored as a dose warning on zinc, not as a timing rule."],"doseUnit":"mg","reference":{"eu":{"dailyValue":{"amount":375,"sources":["eu-1169"]},"upperLimit":{"kind":"UL","amount":250,"note":"Applies to magnesium salts in supplements, water and fortified foods, not magnesium naturally in food.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":420,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":350,"note":"Applies to magnesium from supplements and medicines only, not food or water.","sources":["nasem-ul-elements"]}}}},{"id":"zinc","name":"Zinc","aliases":["Zn","zinc picolinate","zinc citrate","zinc gluconate"],"category":"mineral","fatSoluble":false,"referenceForm":"gluconate","defaultForm":"gluconate","forms":[{"id":"gluconate","name":"Zinc gluconate","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. About 61% fractional absorption from a 10 mg dose without food.","sources":["wegmuller2014","ods-zinc"],"listed":true},{"id":"citrate","name":"Zinc citrate","absorption":"similar","evidence":"moderate","note":"Absorption essentially identical to gluconate (61.3% vs 60.9%) in a stable-isotope crossover study.","sources":["wegmuller2014","ods-zinc"],"listed":true},{"id":"picolinate","name":"Zinc picolinate","absorption":"unclear","evidence":"weak","note":"The 'best absorbed' reputation comes mainly from one 1987 study of 15 people. It measured hair, urine and red-cell zinc after 4 weeks, not absorption directly. There is no modern isotope comparison with citrate or gluconate.","sources":["barrie1987"],"listed":true},{"id":"oxide","name":"Zinc oxide","absorption":"lower","evidence":"moderate","note":"Insoluble in water. About 50% absorption versus 61% for citrate and gluconate, and some people absorbed little or none. Likely depends on stomach acid.","sources":["wegmuller2014","ods-zinc"],"listed":true}],"timing":{"withFood":"neutral","withFoodWhy":"Absorption data above were measured without food. Phytates in grains, legumes and nuts bind zinc and reduce its absorption, so if zinc is taken with a meal, a lower-phytate meal is better.","withFoodEvidence":"moderate","withFoodSources":["wegmuller2014","ods-zinc"],"preferredSlots":[],"frequency":"daily","mealAdvice":{"text":"If zinc is taken with this meal, lighter on whole grains, beans and nuts is better: their phytates bind zinc.","sources":["ods-zinc"]}},"rules":[{"type":"avoid","with":"iron","appliesWhen":{"otherDoseMgAtLeast":25},"why":"Taking 25 mg or more of supplemental iron at the same time reduces zinc absorption and plasma zinc. Iron in fortified foods does not have this effect.","strength":"strong","sources":["ods-zinc"]},{"type":"doseWarning","with":"copper","appliesWhen":{"selfDailyMgAtLeast":50,"durationNote":"weeks or longer"},"why":"Zinc doses of 50 mg/day or more over weeks inhibit copper absorption and can cause copper deficiency.","strength":"strong","sources":["ods-zinc"]},{"type":"doseWarning","with":"magnesium","appliesWhen":{"selfDailyMgAtLeast":142},"why":"Very high zinc doses interfere with magnesium absorption and balance. Far above normal supplement doses.","strength":"moderate","sources":["ods-zinc"]},{"type":"medication","with":"quinolone-tetracycline","severity":"medium","why":"Zinc and these antibiotics bind each other in the gut, reducing absorption of both.","action":"Take the antibiotic at least 2 hours before, or 4 to 6 hours after, zinc.","gapHours":{"medicationBeforeMin":2,"medicationAfterMin":4},"gapBasis":"convention","strength":"strong","sources":["ods-zinc"]},{"type":"medication","with":"penicillamine","severity":"medium","why":"Zinc reduces the absorption and action of penicillamine.","gapHours":1,"gapBasis":"convention","strength":"moderate","sources":["ods-zinc"]}],"doseUnit":"mg","reference":{"eu":{"dailyValue":{"amount":10,"sources":["eu-1169"]},"upperLimit":{"kind":"UL","amount":25,"note":"Applies to food plus supplements combined.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":11,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":40,"note":"Applies to food plus supplements combined.","sources":["nasem-ul-elements"]}}}},{"id":"iron","name":"Iron","aliases":["Fe","ferrous sulfate","ferrous bisglycinate","iron glycinate"],"category":"mineral","fatSoluble":false,"referenceForm":"ferrous-sulfate","defaultForm":"ferrous-bisglycinate","forms":[{"id":"ferrous-sulfate","name":"Ferrous sulfate","absorption":"similar","isReference":true,"evidence":"strong","tolerability":"Roughly doubles the odds of GI side effects versus placebo (OR 2.32 across 20 RCTs).","note":"Reference form and the standard used in most trials. Cheap and effective, but GI side effects are the main reason people stop taking it.","sources":["tolkien2015"],"listed":true},{"id":"ferrous-bisglycinate","name":"Ferrous bisglycinate","absorption":"higher","evidence":"moderate","tolerability":"About 64% fewer reported GI adverse events than other iron forms in a meta-analysis (pregnant women).","note":"In a meta-analysis of 17 RCTs it raised hemoglobin more than other iron forms in pregnant women. No significant difference was seen in children. Evidence in non-pregnant adults is limited, so the 'higher' rating applies to the populations studied.","sources":["fischer2023"],"listed":true}],"timing":{"withFood":"avoid","withFoodWhy":"Common meal components inhibit non-heme iron absorption. About 165 mg calcium in a meal (from milk or cheese) cut absorption by 50 to 60%. Coffee and tea taken with food also cut it substantially. If iron causes stomach upset, the fallback is a light, low-calcium meal without coffee or tea.","withFoodEvidence":"strong","withFoodSources":["hallberg1991","cook1991","morck1983"],"preferredSlots":["morning"],"preferredSlotsWhy":"Morning single doses were used in the dosing studies. Splitting the dose twice daily raised hepcidin, the hormone that blocks iron absorption.","frequency":"daily","frequencyOptions":[{"id":"alternate-day","label":"Every other day","why":"Each iron dose raises hepcidin for about a day, which reduces absorption of the next dose. Alternate-day dosing gave higher fractional absorption in iron-depleted and anaemic women. At equal total doses over 3 months it did not give higher ferritin, but it caused fewer GI side effects and less iron deficiency at 6 months.","strength":"moderate","sources":["stoffel2017","stoffel2020","vonsiebenthal2023"]}],"nearbyMealAdvice":{"withinHours":2,"text":"Keep this meal low in dairy and other calcium-rich food. About 165 mg calcium, given as milk or cheese, cut iron absorption from a meal by 50 to 60%.","sources":["hallberg1991"]}},"rules":[{"type":"avoid","with":"calcium","why":"Calcium inhibits both non-heme and heme iron absorption, in a dose-related way, when taken in the same meal. Calcium carbonate taken without food did not inhibit ferrous sulfate in one study, but calcium citrate and phosphate did, and all calcium forms inhibited iron when taken with food.","gapHours":2,"gapBasis":"convention","strength":"strong","sources":["hallberg1991","cook1991"]},{"type":"avoid","with":"coffee","why":"Coffee polyphenols bind non-heme iron in the gut so it cannot be absorbed. A cup with a meal cut iron absorption by 39%, and stronger coffee cut it more. Adding milk does not reduce the effect.","gapHours":{"contextBeforeMin":1,"contextAfterMin":2},"gapBasis":"convention","gapNote":"Before-gap is measured: coffee 1 h before a meal had no effect. After-gap of 2 h is a conservative choice, because coffee 1 h after still inhibited as much as with the meal, while for tea a 1 h gap reduced the inhibition.","strength":"strong","sources":["morck1983","hurrell1999"]},{"type":"avoid","with":"tea","why":"Tea polyphenols are stronger iron blockers than coffee: 64% reduction with a meal in one study and 79 to 94% in another. Adding milk does not reduce the effect.","gapHours":{"contextBeforeMin":1,"contextAfterMin":2},"gapBasis":"convention","gapNote":"Before-gap is measured: coffee 1 h before a meal had no effect. After-gap of 2 h is a conservative choice, because coffee 1 h after still inhibited as much as with the meal, while for tea a 1 h gap reduced the inhibition.","strength":"strong","sources":["morck1983","hurrell1999","ahmad2017"]},{"type":"avoid","with":"herbal-tea","why":"Herbal teas and cocoa also inhibit iron, in proportion to their polyphenol content: peppermint 84%, cocoa 71%, chamomile 47%.","gapHours":{"contextBeforeMin":1,"contextAfterMin":2},"gapBasis":"convention","gapNote":"Same windows as coffee and tea; no herbal-specific timing study.","strength":"moderate","sources":["hurrell1999"]},{"type":"pair","with":"vitamin-c","sameSlotRequired":true,"why":"Ascorbic acid enhances non-heme iron absorption, but only when present at the same time. A large vitamin C dose at breakfast did not affect iron absorbed at lunch or dinner. The effect measured across a whole diet is much smaller than in single-meal tests.","strength":"moderate","sources":["hallberg1989","cook1977","cook2001"]}],"notes":["Zinc and iron interaction is stored on zinc (symmetric avoid rule).","Medication interactions (e.g. levothyroxine, PPIs) not yet added; pending a primary source for each.","Decaf coffee is not exempt by assumption: the iron effect comes from polyphenols, not caffeine. No study in the dataset tested decaf directly, so the app should treat decaf as coffee until one is sourced."],"doseUnit":"mg","reference":{"eu":{"dailyValue":{"amount":14,"sources":["eu-1169"]},"upperLimit":{"kind":"safe-level","amount":40,"note":"EFSA could not identify a clear threshold for harm, so it set a safe level of intake instead of an upper limit.","sources":["efsa-iron-2024"]}},"us":{"dailyValue":{"amount":18,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":45,"note":"Applies to food plus supplements combined.","sources":["nasem-ul-elements"]}}}},{"id":"calcium","name":"Calcium","doseUnit":"mg","aliases":["Ca","calcium carbonate","calcium citrate"],"category":"mineral","fatSoluble":false,"referenceForm":"carbonate","defaultForm":"carbonate","forms":[{"id":"carbonate","name":"Calcium carbonate","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. 40% calcium by weight, so fewer or smaller tablets. Needs stomach acid to dissolve, so take it with a meal. More likely than citrate to cause gas, bloating and constipation.","sources":["ods-calcium"],"timingOverride":{"withFood":"required","withFoodWhy":"Carbonate needs stomach acid to dissolve. Taking it with a meal keeps absorption up, especially for people with low stomach acid."},"listed":true},{"id":"citrate","name":"Calcium citrate","absorption":"higher","evidence":"moderate","note":"Only 21% calcium by weight, so larger or more tablets. Does not depend on stomach acid and can be taken without food. A meta-analysis found it absorbed about 22 to 27% better than carbonate, both fasting and with meals. A later crossover study found the two equivalent, so the size of the advantage is uncertain.","sources":["ods-calcium","sakhaee1999","heaney2001"],"timingOverride":{"withFood":"preferred","withFoodWhy":"Works without food, but all calcium supplements are absorbed somewhat better with a meal."},"listed":true}],"timing":{"withFood":"preferred","withFoodWhy":"All calcium supplements are absorbed better when taken with food.","withFoodEvidence":"moderate","withFoodSources":["ods-calcium"],"preferredSlots":[],"frequency":"daily","maxPerDose":{"amount":500,"why":"Absorption is highest at 500 mg or less per dose: about 36% of a 300 mg dose versus 28% of a 1,000 mg dose.","sources":["ods-calcium"]}},"rules":[{"type":"medication","with":"levothyroxine","severity":"medium","why":"Calcium supplements reduce levothyroxine absorption; the levothyroxine label warning names calcium carbonate specifically.","action":"Keep levothyroxine at least 4 hours away from calcium.","gapHours":4,"gapBasis":"convention","strength":"strong","sources":["ods-calcium"]},{"type":"medication","with":"quinolones","severity":"medium","why":"Calcium binds quinolone antibiotics in the gut.","action":"Take the antibiotic at least 2 hours before or 2 hours after calcium.","gapHours":2,"gapBasis":"convention","strength":"strong","sources":["ods-calcium"]},{"type":"medication","with":"dolutegravir","severity":"medium","why":"Calcium reduces dolutegravir absorption.","action":"Take dolutegravir 2 hours before or 6 hours after calcium.","gapHours":{"medicationBeforeMin":2,"medicationAfterMin":6},"gapBasis":"convention","strength":"strong","sources":["ods-calcium"]}],"notes":["The calcium–iron separation is stored on iron (symmetric avoid rule).","Coffee's small effect on calcium balance is stored on the coffee context."],"reference":{"eu":{"dailyValue":{"amount":800,"sources":["eu-1169"]},"upperLimit":{"kind":"UL","amount":2500,"note":"Applies to food plus supplements combined.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":1300,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":2500,"note":"2,500 mg for ages 19–50 and 2,000 mg from age 51, food plus supplements combined.","sources":["ods-calcium"]}}}},{"id":"vitamin-c","name":"Vitamin C","doseUnit":"mg","aliases":["ascorbic acid","Ester-C","ascorbate"],"category":"vitamin","fatSoluble":false,"referenceForm":"ascorbic-acid","defaultForm":"ascorbic-acid","forms":[{"id":"ascorbic-acid","name":"Ascorbic acid","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form. As bioavailable as the vitamin C in orange juice or broccoli. The cheapest form.","sources":["ods-vitc"],"listed":true},{"id":"ester-c","name":"Ester-C (calcium ascorbate with metabolites)","absorption":"similar","evidence":"moderate","note":"Same plasma levels and urinary excretion as plain ascorbic acid in one comparison. Another study found higher levels in white blood cells after 24 hours. No clear advantage at a higher price.","sources":["ods-vitc"],"listed":false},{"id":"with-bioflavonoids","name":"Ascorbic acid with bioflavonoids","absorption":"similar","evidence":"moderate","note":"No difference from plain ascorbic acid in plasma levels or urinary excretion.","sources":["ods-vitc"],"listed":false},{"id":"liposomal","name":"Liposomal vitamin C","absorption":"higher","evidence":"weak","note":"Nine of ten small studies reported higher blood levels than plain vitamin C (1.2 to 5.4 times higher peak). The formulations, doses and methods differed widely, and almost none measured uptake into cells or any health effect.","sources":["carr2025"],"listed":true}],"timing":{"withFood":"neutral","withFoodWhy":"No sourced effect of food on vitamin C absorption.","withFoodEvidence":"weak","withFoodSources":["ods-vitc"],"preferredSlots":[],"frequency":"daily","maxPerDose":{"amount":1000,"why":"Absorption is about 70 to 90% at 30–180 mg/day and falls below 50% above 1 g. Splitting a large dose keeps each part on the efficient end of that curve. The 1,000 mg split point is a convention.","sources":["ods-vitc"]}},"rules":[],"notes":["The iron pairing is stored on iron."],"reference":{"eu":{"dailyValue":{"amount":80,"sources":["eu-1169"]},"upperLimit":{"kind":"none","note":"No upper limit set (insufficient data). High doses can still cause diarrhoea, nausea and cramps.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":90,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":2000,"note":"Applies to food plus supplements combined. High doses can cause diarrhoea, nausea and cramps.","sources":["ods-vitc"]}}}},{"id":"copper","name":"Copper","doseUnit":"mg","aliases":["Cu","copper gluconate","copper bisglycinate"],"category":"mineral","fatSoluble":false,"referenceForm":"gluconate","defaultForm":"gluconate","forms":[{"id":"gluconate","name":"Copper gluconate","absorption":"similar","isReference":true,"evidence":"weak","note":"Reference form by convention only. No studies have compared the bioavailability of copper forms.","sources":["ods-copper"],"listed":true},{"id":"sulfate","name":"Cupric sulfate","absorption":"unclear","evidence":"weak","note":"No comparative data.","sources":["ods-copper"],"listed":false},{"id":"chelate","name":"Copper amino acid chelate (e.g. bisglycinate)","absorption":"unclear","evidence":"weak","note":"No comparative data, despite marketing as better absorbed.","sources":["ods-copper"],"listed":true},{"id":"oxide","name":"Cupric oxide","absorption":"unclear","evidence":"weak","note":"No comparative human data.","sources":["ods-copper"],"listed":false}],"timing":{"withFood":"neutral","withFoodWhy":"No sourced food effect. Absorption falls as total copper intake rises: about 75% at 0.4 mg/day versus 12% at 7.5 mg/day.","withFoodEvidence":"weak","withFoodSources":["ods-copper"],"preferredSlots":[],"frequency":"daily"},"rules":[],"notes":["High-dose zinc lowers copper absorption, but the sources give no timing guidance, so this is stored as a dose warning on zinc rather than a timing rule.","No clinically relevant medication interactions are known."],"reference":{"eu":{"dailyValue":{"amount":1,"sources":["eu-1169"]},"upperLimit":{"kind":"UL","amount":5,"note":"Applies to food plus supplements combined.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":0.9,"sources":["fda-dv"]},"upperLimit":{"kind":"UL","amount":10,"note":"Applies to food plus supplements combined.","sources":["nasem-ul-elements"]}}}},{"id":"omega-3","name":"Omega-3","doseUnit":"mg EPA+DHA","aliases":["fish oil","EPA","DHA","krill oil","algal oil"],"category":"fatty acid","fatSoluble":true,"referenceForm":"triglyceride","defaultForm":"triglyceride","forms":[{"id":"triglyceride","name":"Natural triglyceride fish oil","absorption":"similar","isReference":true,"evidence":"strong","note":"Reference form, as it occurs in fish.","sources":["ods-omega3","dyerberg2010"],"listed":true},{"id":"rtg","name":"Re-esterified triglyceride (rTG) concentrate","absorption":"higher","evidence":"moderate","note":"About 124% of natural fish oil's bioavailability in a 2-week comparison.","sources":["dyerberg2010","ods-omega3"],"listed":false},{"id":"ethyl-ester","name":"Ethyl ester (EE) concentrate","absorption":"lower","evidence":"strong","note":"About 73% of natural fish oil in the same comparison. Strongly meal-dependent: absorption roughly tripled with a high-fat meal compared with a low-fat one.","sources":["dyerberg2010","lawson1988","ods-omega3"],"timingOverride":{"withFood":"required","withFoodWhy":"Ethyl esters need fat-digesting enzymes released by a fatty meal; absorption roughly tripled with 44 g versus 8 g of fat.","mealAdvice":{"key":"big-fat-meal","text":"Take ethyl-ester fish oil with your largest, fattiest meal of the day: its absorption depends far more on dietary fat than other forms.","sources":["lawson1988"]}},"listed":true},{"id":"phospholipid","name":"Krill oil (phospholipid)","absorption":"unclear","evidence":"weak","note":"Some studies found higher bioavailability than fish oil, others did not.","sources":["ods-omega3"],"listed":true},{"id":"algal","name":"Algal oil (vegan DHA/EPA)","absorption":"similar","evidence":"weak","note":"Usually in triglyceride form. In a small study DHA from algal oil was as bioavailable as from cooked salmon.","sources":["ods-omega3"],"listed":true}],"timing":{"withFood":"preferred","withFoodWhy":"A fat, absorbed with the fat in a meal. Triglyceride EPA absorption rose from 69% to 90% with a high-fat meal.","withFoodEvidence":"moderate","withFoodSources":["lawson1988"],"preferredSlots":[],"frequency":"daily","mealAdvice":{"key":"fat-meal","text":"Make this a meal with some fat in it.","sources":["lawson1988"]}},"rules":[{"type":"medication","with":"warfarin-vka","severity":"low","why":"Fish oil may prolong clotting time with warfarin, though most research finds 3–6 g/day does not significantly change anticoagulation.","action":"Mention it to the prescriber; INR may be checked periodically.","strength":"moderate","sources":["ods-omega3"]}],"reference":{"eu":{"dailyValue":null,"upperLimit":{"kind":"guidance","amount":5000,"note":"No formal upper limit. EFSA considers up to about 5 g/day EPA+DHA from supplements safe.","sources":["ods-omega3"]}},"us":{"dailyValue":null,"upperLimit":{"kind":"guidance","amount":5000,"note":"No formal upper limit. FDA considers supplements providing up to 5 g/day EPA+DHA safe.","sources":["ods-omega3"]}}}},{"id":"vitamin-b12","name":"Vitamin B12","doseUnit":"µg","aliases":["B12","cobalamin","cyanocobalamin","methylcobalamin"],"category":"vitamin","fatSoluble":false,"referenceForm":"cyanocobalamin","defaultForm":"cyanocobalamin","forms":[{"id":"cyanocobalamin","name":"Cyanocobalamin","absorption":"similar","isReference":true,"evidence":"moderate","note":"Reference form and the most common in supplements. Stable and well studied.","sources":["ods-b12"],"listed":true},{"id":"methylcobalamin","name":"Methylcobalamin","absorption":"similar","evidence":"moderate","note":"Often marketed as more bioavailable or 'active', but there is no evidence that absorption differs by form.","sources":["ods-b12"],"listed":true},{"id":"adenosylcobalamin","name":"Adenosylcobalamin","absorption":"similar","evidence":"moderate","note":"No evidence that absorption differs by form.","sources":["ods-b12"],"listed":false},{"id":"hydroxocobalamin","name":"Hydroxocobalamin","absorption":"similar","evidence":"moderate","note":"No evidence that absorption differs by form.","sources":["ods-b12"],"listed":false}],"timing":{"withFood":"neutral","withFoodWhy":"Supplement B12 is already in free form, so unlike food B12 it does not need stomach acid to be released.","withFoodEvidence":"moderate","withFoodSources":["ods-b12"],"preferredSlots":[],"frequency":"daily","absorptionNote":"Active absorption saturates at about 1–2 µg per dose. Only about 2% of a 500 µg dose and 1.3% of a 1,000 µg dose is absorbed, which is why high-dose tablets exist."},"rules":[{"type":"medication","with":"acid-suppressants","severity":"low","why":"These reduce stomach acid, which impairs release of B12 from food and can lead to deficiency over time. Supplement B12 is already free and does not need that step.","action":"Ask the prescriber whether B12 status should be checked.","strength":"moderate","sources":["ods-b12"]},{"type":"medication","with":"metformin","severity":"low","why":"Metformin may reduce B12 absorption and significantly lower blood B12.","action":"Ask the prescriber whether B12 status should be checked.","strength":"moderate","sources":["ods-b12"]}],"notes":["No upper limit has been set; B12 has low toxicity potential."],"reference":{"eu":{"dailyValue":{"amount":2.5,"sources":["eu-1169"]},"upperLimit":{"kind":"none","note":"No upper limit set; no defined adverse effects.","sources":["efsa-ul-overview"]}},"us":{"dailyValue":{"amount":2.4,"sources":["fda-dv"]},"upperLimit":{"kind":"none","note":"No upper limit set because of low potential for toxicity.","sources":["ods-b12"]}}}}],"sources":{"tripkovic2012":{"title":"Comparison of vitamin D2 and vitamin D3 supplementation in raising serum 25-hydroxyvitamin D status: a systematic review and meta-analysis","authors":"Tripkovic L, Lambert H, Hart K, et al.","journal":"Am J Clin Nutr","year":2012,"type":"meta-analysis","url":"https://pubmed.ncbi.nlm.nih.gov/22552031/"},"tripkovic2017":{"title":"Daily supplementation with 15 µg vitamin D2 compared with vitamin D3 to increase wintertime 25-hydroxyvitamin D status in healthy South Asian and white European women: a 12-wk randomized, placebo-controlled food-fortification trial","authors":"Tripkovic L, Wilson LR, Hart K, et al.","journal":"Am J Clin Nutr","year":2017,"type":"RCT","url":"https://pubmed.ncbi.nlm.nih.gov/28679555/"},"lanhamnew2017":{"title":"Vitamin D2 vs. vitamin D3: They are not one and the same","authors":"Lanham-New SA, Wilson LR, Tripkovic L","journal":"Nutrition Bulletin","year":2017,"type":"review","url":"https://doi.org/10.1111/nbu.12293"},"dawsonhughes2015":{"title":"Dietary fat increases vitamin D-3 absorption","authors":"Dawson-Hughes B, Harris SS, Lichtenstein AH, et al.","journal":"J Acad Nutr Diet","year":2015,"type":"RCT","url":"https://doi.org/10.1016/j.jand.2014.09.014","fundingNote":"Supported by Pfizer Consumer Healthcare"},"dawsonhughes2013":{"title":"Meal conditions affect the absorption of supplemental vitamin D3 but not the plasma 25-hydroxyvitamin D response to supplementation","authors":"Dawson-Hughes B, Harris SS, Palermo NJ, et al.","journal":"J Bone Miner Res","year":2013,"type":"RCT","url":"https://doi.org/10.1002/jbmr.1896"},"schurgers2007":{"title":"Vitamin K-containing dietary supplements: comparison of synthetic vitamin K1 and natto-derived menaquinone-7","authors":"Schurgers LJ, Teunissen KJ, Hamulyák K, et al.","journal":"Blood","year":2007,"type":"controlled human study","url":"https://doi.org/10.1182/blood-2006-08-040709","fundingNote":"Partly funded by an MK-7 supplier (Natural ASA)"},"sato2012":{"title":"Comparison of menaquinone-4 and menaquinone-7 bioavailability in healthy women","authors":"Sato T, Schurgers LJ, Uenishi K","journal":"Nutr J","year":2012,"type":"controlled human study","url":"https://pmc.ncbi.nlm.nih.gov/articles/PMC3502319/"},"ods-vitk":{"title":"Vitamin K: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"},"ods-mg":{"title":"Magnesium: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"},"firoz2001":{"title":"Bioavailability of US commercial magnesium preparations","authors":"Firoz M, Graber M","journal":"Magnes Res","year":2001,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/11794633/"},"walker2003":{"title":"Mg citrate found more bioavailable than other Mg preparations in a randomised, double-blind study","authors":"Walker AF, Marakis G, Christie S, Byng M","journal":"Magnes Res","year":2003,"type":"RCT","url":"https://pubmed.ncbi.nlm.nih.gov/14596323/"},"lindberg1990":{"title":"Magnesium bioavailability from magnesium citrate and magnesium oxide","authors":"Lindberg JS, Zobitz MM, Poindexter JR, Pak CY","journal":"J Am Coll Nutr","year":1990,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/2407766/"},"pajuelo2024":{"title":"Comparative Clinical Study on Magnesium Absorption and Side Effects After Oral Intake of Microencapsulated Magnesium (MAGSHAPE Microcapsules) Versus Other Magnesium Sources","authors":"Pajuelo D, Meissner JM, Negra T, Connolly A, Mullor JL","journal":"Nutrients","year":2024,"type":"RCT (crossover)","url":"https://doi.org/10.3390/nu16244367","fundingNote":"Study of a commercial microencapsulated ingredient; oxide, citrate and bisglycinate were comparators"},"ods-zinc":{"title":"Zinc: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"},"wegmuller2014":{"title":"Zinc absorption by young adults from supplemental zinc citrate is comparable with that from zinc gluconate and higher than from zinc oxide","authors":"Wegmüller R, Tay F, Zeder C, Brnic M, Hurrell RF","journal":"J Nutr","year":2014,"type":"RCT (crossover, stable isotope)","url":"https://pubmed.ncbi.nlm.nih.gov/24259556/","fundingNote":"Sponsored by a zinc citrate supplier (Jungbunzlauer)"},"barrie1987":{"title":"Comparative absorption of zinc picolinate, zinc citrate and zinc gluconate in humans","authors":"Barrie SA, Wright JV, Pizzorno JE, Kutter E, Barron PC","journal":"Agents Actions","year":1987,"type":"controlled human study (n=15)","url":"https://pubmed.ncbi.nlm.nih.gov/3630857/"},"tolkien2015":{"title":"Ferrous sulfate supplementation causes significant gastrointestinal side-effects in adults: a systematic review and meta-analysis","authors":"Tolkien Z, Stecher L, Mander AP, Pereira DI, Powell JJ","journal":"PLoS One","year":2015,"type":"meta-analysis","url":"https://doi.org/10.1371/journal.pone.0117383"},"fischer2023":{"title":"The effects of oral ferrous bisglycinate supplementation on hemoglobin and ferritin concentrations in adults and children: a systematic review and meta-analysis of randomized controlled trials","authors":"Fischer JAJ, Cherian AM, Bone JN, Karakochuk CD","journal":"Nutr Rev","year":2023,"type":"meta-analysis","url":"https://pubmed.ncbi.nlm.nih.gov/36728680/"},"hallberg1991":{"title":"Calcium: effect of different amounts on nonheme- and heme-iron absorption in humans","authors":"Hallberg L, Brune M, Erlandsson M, Sandberg AS, Rossander-Hultén L","journal":"Am J Clin Nutr","year":1991,"type":"controlled human study","url":"https://doi.org/10.1093/ajcn/53.1.112"},"cook1991":{"title":"Calcium supplementation: effect on iron absorption","authors":"Cook JD, Dassenko SA, Whittaker P","journal":"Am J Clin Nutr","year":1991,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/1984334/"},"morck1983":{"title":"Inhibition of food iron absorption by coffee","authors":"Morck TA, Lynch SR, Cook JD","journal":"Am J Clin Nutr","year":1983,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/6402915/"},"ahmad2017":{"title":"A 1-h time interval between a meal containing iron and consumption of tea attenuates the inhibitory effects on iron absorption: a controlled trial in a cohort of healthy UK women using a stable iron isotope","authors":"Ahmad Fuzi SF, et al.","journal":"Am J Clin Nutr","year":2017,"type":"controlled human study","url":"https://ueaeprints.uea.ac.uk/id/eprint/65903/1/Accepted_manuscript.pdf"},"hallberg1989":{"title":"The role of vitamin C in iron absorption","authors":"Hallberg L, Brune M, Rossander L","journal":"Int J Vitam Nutr Res Suppl","year":1989,"type":"review","url":"https://pubmed.ncbi.nlm.nih.gov/2507689/"},"cook1977":{"title":"Vitamin C, the common cold, and iron absorption","authors":"Cook JD, Monsen ER","journal":"Am J Clin Nutr","year":1977,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/835510/"},"cook2001":{"title":"Effect of ascorbic acid intake on nonheme-iron absorption from a complete diet","authors":"Cook JD, Reddy MB","journal":"Am J Clin Nutr","year":2001,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/11124756/"},"stoffel2017":{"title":"Iron absorption from oral iron supplements given on consecutive versus alternate days and as single morning doses versus twice-daily split dosing in iron-depleted women: two open-label, randomised controlled trials","authors":"Stoffel NU, Cercamondi CI, Brittenham G, et al.","journal":"Lancet Haematol","year":2017,"type":"RCT","url":"https://pubmed.ncbi.nlm.nih.gov/?term=Stoffel+Lancet+Haematol+2017+alternate+days+iron","urlNote":"Search link; replace with the direct PubMed ID once verified"},"stoffel2020":{"title":"Iron absorption from supplements is greater with alternate day than with consecutive day dosing in iron-deficient anemic women","authors":"Stoffel NU, Zeder C, Brittenham GM, Moretti D, Zimmermann MB","journal":"Haematologica","year":2020,"type":"controlled human study","url":"https://doi.org/10.3324/haematol.2019.220830"},"vonsiebenthal2023":{"title":"Alternate day versus consecutive day oral iron supplementation in iron-depleted women: a randomized double-blind placebo-controlled study","authors":"von Siebenthal HK, Gessler S, Vallelian F, et al.","journal":"eClinicalMedicine","year":2023,"type":"RCT","url":"https://doi.org/10.1016/j.eclinm.2023.102286"},"bargerlux1995":{"title":"Caffeine and the calcium economy revisited","authors":"Barger-Lux MJ, Heaney RP","journal":"Osteoporos Int","year":1995,"type":"analysis of 560 calcium balance studies","url":"https://doi.org/10.1007/BF01623310"},"massey1993":{"title":"Caffeine, urinary calcium, calcium metabolism and bone","authors":"Massey LK, Whiting SJ","journal":"J Nutr","year":1993,"type":"review","url":"https://pubmed.ncbi.nlm.nih.gov/8360789/"},"hurrell1999":{"title":"Inhibition of non-haem iron absorption in man by polyphenolic-containing beverages","authors":"Hurrell RF, Reddy M, Cook JD","journal":"Br J Nutr","year":1999,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/10999016/"},"ods-calcium":{"title":"Calcium: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"},"ods-vitc":{"title":"Vitamin C: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"},"ods-copper":{"title":"Copper: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/Copper-HealthProfessional/"},"ods-omega3":{"title":"Omega-3 Fatty Acids: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"},"ods-b12":{"title":"Vitamin B12: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"},"sakhaee1999":{"title":"Meta-analysis of calcium bioavailability: a comparison of calcium citrate with calcium carbonate","authors":"Sakhaee K, Bhuket T, Adams-Huet B, Rao DS","journal":"Am J Ther","year":1999,"type":"meta-analysis","url":"https://pubmed.ncbi.nlm.nih.gov/11329115/"},"heaney2001":{"title":"Absorbability and cost effectiveness in calcium supplementation","authors":"Heaney RP, et al.","journal":"J Am Coll Nutr","year":2001,"type":"RCT (crossover)","url":"https://pubmed.ncbi.nlm.nih.gov/11444420/"},"carr2025":{"title":"Do Liposomal Vitamin C Formulations Have Improved Bioavailability? A Scoping Review Identifying Future Research Directions","authors":"Carr AC","journal":"Basic Clin Pharmacol Toxicol","year":2025,"type":"scoping review","url":"https://doi.org/10.1111/bcpt.70067"},"dyerberg2010":{"title":"Bioavailability of marine n-3 fatty acid formulations","authors":"Dyerberg J, et al.","journal":"Prostaglandins Leukot Essent Fatty Acids","year":2010,"type":"RCT","url":"https://pubmed.ncbi.nlm.nih.gov/20638827/"},"lawson1988":{"title":"Absorption of eicosapentaenoic acid and docosahexaenoic acid from fish oil triacylglycerols or fish oil ethyl esters co-ingested with a high-fat meal","authors":"Lawson LD, Hughes BG","journal":"Biochem Biophys Res Commun","year":1988,"type":"controlled human study","url":"https://pubmed.ncbi.nlm.nih.gov/2847723/"},"eu-1169":{"title":"Regulation (EU) No 1169/2011, Annex XIII Part A: reference intakes of vitamins and minerals (adults)","authors":"European Parliament and Council","year":2011,"type":"regulation","url":"https://www.legislation.gov.uk/eur/2011/1169/annex/XIII","urlNote":"UK-retained copy of the EU text; values are identical to the EU original"},"efsa-ul-overview":{"title":"Overview on Tolerable Upper Intake Levels as derived by the SCF and the EFSA NDA Panel (version 11)","authors":"EFSA","year":2025,"type":"authoritative overview","url":"https://www.efsa.europa.eu/sites/default/files/2024-05/ul-summary-report.pdf"},"efsa-iron-2024":{"title":"Scientific opinion on the tolerable upper intake level for iron","authors":"EFSA NDA Panel","year":2024,"type":"scientific opinion","url":"https://efsa.europa.eu/en/efsajournal/pub/8819"},"fda-dv":{"title":"Daily Value on the Nutrition and Supplement Facts Labels","authors":"US Food and Drug Administration","type":"regulation summary","url":"https://www.fda.gov/food/nutrition-facts-label/daily-value-nutrition-and-supplement-facts-labels"},"nasem-ul-elements":{"title":"Dietary Reference Intakes: Tolerable Upper Intake Levels, Elements","authors":"Food and Nutrition Board, National Academies","type":"reference table","url":"https://www.ncbi.nlm.nih.gov/sites/books/NBK278991/table/diet-treatment-obes.table18die/?report=objectonly"},"ods-vitd":{"title":"Vitamin D: Fact Sheet for Health Professionals","authors":"NIH Office of Dietary Supplements","type":"authoritative overview","url":"https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"}},"contexts":{"coffee":{"label":"Coffee","inputType":"times","activeComponent":"Polyphenols (chlorogenic acids). Caffeine is a separate, smaller effect on calcium and magnesium excretion.","rules":[{"type":"dailyNote","with":"calcium","why":"Each 6 fl oz cup of caffeinated coffee was linked to a calcium balance about 4.6 mg/day more negative, because caffeine slightly lowers calcium absorption efficiency. About 40 mg extra calcium per cup offsets it. This is a whole-day effect, not a timing one, so it never moves a supplement.","strength":"moderate","sources":["bargerlux1995"]},{"type":"dailyNote","with":"magnesium","why":"Caffeine raises urinary excretion of calcium and magnesium for at least 3 hours after intake. The review found the effect does not fade with regular use. In younger adults with adequate calcium intake, increased absorption may compensate. Older women appear not to compensate as well.","strength":"moderate","sources":["massey1993"]}]},"tea":{"label":"Black or green tea","inputType":"times","activeComponent":"Polyphenols (tannins, catechins). Roughly twice the iron-blocking effect of coffee per cup.","rules":[]},"herbal-tea":{"label":"Herbal tea or cocoa","inputType":"times","activeComponent":"Polyphenols. Peppermint is close to black tea; chamomile is about half as strong.","rules":[]}}}</script>
+<script>
+"use strict";
+/* ============================================================
+   Interface text (one place, for later translation)
+   ============================================================ */
+const STR = {
+  regionAuto: r => `Reference values: ${r} (auto)`,
+  region: r => `Reference values: ${r}`,
+  emptyTitle: "No supplements switched on yet",
+  emptyBody: "Switch on the supplements you take and the weekly plan appears here.",
+  goStack: "Choose supplements",
+  example: "Load an example",
+  exampleNote: "Example stack loaded. Change anything in Supplements.",
+  nothingToday: "Nothing scheduled on this day.",
+  checkThese: "Check these",
+  notes: "Notes",
+  sources: "Sources",
+  why: "Why this time",
+  mainMeal: "main meal",
+  notSure: "Not sure / not listed",
+  blend: "Blend of several forms",
+  notSureNote: f => `Using ${f} for timing. Check the label for a more accurate plan.`,
+  blendNote: "Timing follows the strictest of the listed forms. Absorption can't be rated for a blend.",
+  daily: "Every day", alternate: "Every other day", weekly: "Once a week",
+  weekOf: d => `Week of ${d}`,
+  saved: "Saved on this device.",
+  copied: "Backup copied. Paste it somewhere safe, such as a note to yourself.",
+  copyFailed: "Couldn't copy automatically. Select the text below and copy it.",
+  imported: "Backup restored.",
+  importBad: "That doesn't look like a Stax backup. Check that the whole text was pasted.",
+  resetDone: "Everything cleared.",
+};
+const ABS = { higher: "Higher absorption", similar: "Reference level", lower: "Lower absorption", unclear: "Unclear" };
+const ABS_REF = "Reference form";
+
+/* ============================================================
+   Scheduler (ported from stax-solver.js)
+   ============================================================ */
+const DATA = JSON.parse(document.getElementById("stax-data").textContent);
+const SUPP = Object.fromEntries(DATA.supplements.map(s => [s.id, s]));
+const CTX = DATA.contexts || {};
+const TD = DATA.meta.timingDefaults;
+const toH = t => { const [h, m] = t.split(":").map(Number); return h + m / 60; };
+const fmt = h => { const m = Math.round(h * 60); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+const round15 = h => Math.round(h * 4) / 4;
+const first = s => s.split(". ")[0].replace(/\.$/, "") + ".";
+const WEIGHTS = { withFood: 2, preferredTime: 1, pair: 3, mainMeal: 1, slotUsed: -0.5, generatedSlot: -0.5 };
+const RULES = [];
+for (const s of DATA.supplements) for (const r of s.rules) RULES.push({ ...r, owner: s.id });
+for (const [cid, c] of Object.entries(CTX)) for (const r of c.rules) RULES.push({ ...r, owner: cid });
+
+function buildSlots(settings) {
+  const wake = toH(settings.wake), bed = toH(settings.bedtime);
+  const meals = settings.meals.map(m => ({ ...m, t: toH(m.time) })).sort((a, b) => a.t - b.t);
+  const drinks = Object.fromEntries(Object.entries(settings.drinks || {}).map(([k, v]) => [k, v.map(toH)]));
+  const es = TD.emptyStomach;
+  const raw = [
+    { t: wake, kind: "wake", label: "On waking" },
+    { t: bed, kind: "bedtime", label: "Bedtime" },
+    ...meals.map(m => ({ t: m.t, kind: "meal", label: m.label, mealId: m.id })),
+  ];
+  for (const m of meals) {
+    raw.push({ t: m.t - es.beforeMealMinHours, kind: "gen", label: `${es.beforeMealMinHours} h before ${m.label.toLowerCase()}` });
+    raw.push({ t: m.t + es.afterMealMinHours, kind: "gen", label: `${es.afterMealMinHours} h after ${m.label.toLowerCase()}` });
+  }
+  for (const r of RULES.filter(r => r.type === "avoid" && CTX[r.with])) {
+    const g = r.gapHours || {};
+    for (const d of drinks[r.with] || []) {
+      raw.push({ t: d + (g.contextBeforeMin ?? 0), kind: "gen", label: `${g.contextBeforeMin} h after ${CTX[r.with].label.toLowerCase()}` });
+      raw.push({ t: d - (g.contextAfterMin ?? 0), kind: "gen", label: `${g.contextAfterMin} h before ${CTX[r.with].label.toLowerCase()}` });
+    }
+  }
+  const byTime = new Map();
+  for (const s of raw) {
+    s.t = round15(s.t);
+    if (s.t < wake || s.t > bed) continue;
+    const prev = byTime.get(s.t);
+    if (!prev || (prev.kind === "gen" && s.kind !== "gen")) byTime.set(s.t, s);
+  }
+  const slots = [...byTime.values()].sort((a, b) => a.t - b.t).map((s, i) => ({ ...s, id: i }));
+  for (const sl of slots) {
+    sl.meal = sl.kind === "meal";
+    const prev = meals.filter(m => m.t <= sl.t && !(sl.meal && m.t === sl.t)).pop();
+    const next = meals.find(m => m.t > sl.t);
+    sl.sincePrev = prev ? sl.t - prev.t : Infinity;
+    sl.untilNext = next ? next.t - sl.t : Infinity;
+    sl.empty = !sl.meal && sl.sincePrev >= es.afterMealMinHours && sl.untilNext >= es.beforeMealMinHours;
+  }
+  return { slots, meals, drinks };
+}
+function avoidApplies(rule, target) {
+  const w = rule.appliesWhen || {};
+  if (w.otherDoseMgAtLeast != null) return target.dose == null || target.dose >= w.otherDoseMgAtLeast;
+  return true;
+}
+function gapHours(rule) {
+  if (rule.gapHours == null) return TD.defaultAvoidGapHours;
+  return typeof rule.gapHours === "number" ? rule.gapHours : Math.max(...Object.values(rule.gapHours));
+}
+function contextClear(rule, t, drinkTimes) {
+  const g = rule.gapHours || {}, before = g.contextBeforeMin ?? 0, after = g.contextAfterMin ?? 0;
+  return drinkTimes.every(d => d <= t - before + 1e-9 || d >= t + after - 1e-9);
+}
+function resolveForm(supp, formId) {
+  const ref = supp.forms.find(f => f.id === supp.referenceForm);
+  if (formId === "not-sure") return { form: ref, label: ref.name, unsure: true, timing: { ...supp.timing, ...(ref.timingOverride || {}) } };
+  if (formId === "blend") {
+    const order = { avoid: 0, neutral: 1, preferred: 2, required: 3 };
+    let t = { ...supp.timing };
+    for (const f of supp.forms.filter(f => f.listed && f.timingOverride)) if (order[f.timingOverride.withFood] > order[t.withFood]) t = { ...t, ...f.timingOverride };
+    return { form: null, label: `${supp.name} (blend)`, blend: true, timing: t };
+  }
+  const f = supp.forms.find(x => x.id === formId) || supp.forms.find(x => x.id === supp.defaultForm);
+  return { form: f, label: f.name, timing: { ...supp.timing, ...(f.timingOverride || {}) } };
+}
+
+function solve(settings, stack, medications, region) {
+  const day = buildSlots(settings);
+  const { slots, drinks } = day;
+  const items = [];
+  for (const it of stack) {
+    const supp = SUPP[it.id];
+    const rf = resolveForm(supp, it.form);
+    const dose = it.dose ?? null;
+    const max = rf.timing.maxPerDose && rf.timing.maxPerDose.amount;
+    const parts = dose != null && max && dose > max ? Math.ceil(dose / max) : 1;
+    for (let k = 0; k < parts; k++) items.push({ id: it.id, supp, rf, timing: rf.timing, dose, partDose: parts > 1 ? Math.round(dose / parts) : dose, part: k + 1, parts });
+  }
+  const ctxRules = id => RULES.filter(r => r.owner === id && r.type === "avoid" && CTX[r.with]);
+  const candidates = items.map(it => {
+    const wf = it.timing.withFood;
+    let c = slots.filter(sl => ctxRules(it.id).every(r => contextClear(r, sl.t, drinks[r.with] || [])));
+    if (wf === "required" || wf === "preferred") { const m = c.filter(s => s.meal); if (m.length) c = m; }
+    if (wf === "avoid") { const e = c.filter(s => s.empty); if (e.length) c = e; }
+    return c.slice();
+  });
+  const idx = id => items.map((x, i) => (x.id === id ? i : -1)).filter(i => i >= 0);
+  const avoidPairs = [];
+  for (const r of RULES.filter(r => r.type === "avoid" && SUPP[r.owner] && SUPP[r.with]))
+    for (const a of idx(r.owner)) for (const b of idx(r.with))
+      if (avoidApplies(r, { dose: items[b].partDose })) avoidPairs.push({ a, b, rule: r, gap: gapHours(r) });
+  items.forEach((x, a) => items.forEach((y, b) => {
+    if (b > a && x.id === y.id && x.parts > 1) avoidPairs.push({ a, b, gap: TD.defaultAvoidGapHours, split: true, rule: { why: x.timing.maxPerDose.why, sources: x.timing.maxPerDose.sources } });
+  }));
+  const pairs = [];
+  for (const r of RULES.filter(r => r.type === "pair")) for (const a of idx(r.owner)) for (const b of idx(r.with)) pairs.push({ a, b, rule: r });
+
+  const unary = (i, sl) => {
+    const it = items[i], t = it.timing;
+    let s = -sl.t * 0.001;
+    const wantsFood = t.withFood === "preferred" || t.withFood === "required";
+    if (wantsFood && sl.meal) s += WEIGHTS.withFood;
+    if (t.withFood === "avoid" && sl.empty) s += WEIGHTS.withFood;
+    if ((t.preferredSlots || []).includes("morning") && sl.t < 12) s += WEIGHTS.preferredTime;
+    if (wantsFood && it.supp.fatSoluble && sl.mealId && sl.mealId === settings.mainMeal) s += WEIGHTS.mainMeal;
+    return s;
+  };
+  const assign = new Array(items.length);
+  const placed = new Array(items.length).fill(false);
+  const score = () => {
+    let s = 0;
+    items.forEach((_, i) => { s += unary(i, assign[i]); });
+    for (const p of pairs) if (assign[p.a].id === assign[p.b].id) s += WEIGHTS.pair;
+    const used = new Set(assign.map(x => x.id));
+    s += WEIGHTS.slotUsed * (used.size - 1);
+    for (const id of used) if (slots[id].kind === "gen") s += WEIGHTS.generatedSlot;
+    return s;
+  };
+  const clash = i => avoidPairs.some(p => {
+    const o = p.a === i ? p.b : p.b === i ? p.a : -1;
+    return o >= 0 && assign[o] && Math.abs(assign[o].t - assign[i].t) < p.gap - 1e-9;
+  });
+  const order = items.map((_, i) => i).sort((x, y) => candidates[x].length - candidates[y].length);
+  candidates.forEach((c, i) => c.sort((p, q) => unary(i, q) - unary(i, p)));
+  const maxUnary = candidates.map((c, i) => (c.length ? Math.max(...c.map(sl => unary(i, sl))) : -Infinity));
+  let best = null;
+  function bound() {
+    let s = 0; const used = new Set();
+    items.forEach((_, i) => { if (placed[i]) { s += unary(i, assign[i]); used.add(assign[i].id); } else s += maxUnary[i]; });
+    for (const p of pairs) { if (placed[p.a] && placed[p.b]) { if (assign[p.a].id === assign[p.b].id) s += WEIGHTS.pair; } else s += WEIGHTS.pair; }
+    if (used.size) s += WEIGHTS.slotUsed * (used.size - 1);
+    for (const id of used) if (slots[id].kind === "gen") s += WEIGHTS.generatedSlot;
+    return s;
+  }
+  (function bt(k) {
+    if (best && bound() <= best.score + 1e-9) return;
+    if (k === order.length) { const s = score(); if (!best || s > best.score) best = { score: s, assign: assign.slice() }; return; }
+    const i = order[k];
+    for (const sl of candidates[i]) { assign[i] = sl; placed[i] = true; if (!clash(i)) bt(k + 1); assign[i] = undefined; placed[i] = false; }
+  })(0);
+  return explain({ items, day, candidates, best, medications, avoidPairs, pairs, region, settings });
+}
+
+function explain({ items, day, candidates, best, medications, avoidPairs, pairs, region, settings }) {
+  const REG = DATA.meta.regions[region];
+  const { slots, drinks } = day;
+  const out = { schedule: [], unplaced: [], warnings: [], notes: [] };
+  if (!best) {
+    items.forEach((it, i) => {
+      if (!candidates[i].length) {
+        const by = RULES.filter(r => r.owner === it.id && r.type === "avoid" && CTX[r.with] && (drinks[r.with] || []).length).map(r => CTX[r.with].label.toLowerCase());
+        out.unplaced.push({ name: it.supp.name, why: `No time between waking and bedtime is clear of ${by.join(" and ") || "its constraints"}. Move a drink time or change waking or bedtime in Day setup.` });
+      }
+    });
+    if (!out.unplaced.length) out.unplaced.push({ name: "These supplements", why: "Their separation rules can't all fit between waking and bedtime. Try a longer day in Day setup, or switch one item to every other day." });
+  } else {
+    const rows = new Map();
+    const row = sl => { if (!rows.has(sl.id)) rows.set(sl.id, { t: sl.t, time: fmt(sl.t), label: sl.label, kind: sl.kind, meal: sl.meal, main: sl.mealId && sl.mealId === settings.mainMeal, items: [], mealAdvice: [] }); return rows.get(sl.id); };
+    items.forEach((it, i) => {
+      const sl = best.assign[i], t = it.timing;
+      const reasons = [];
+      const add = (text, sources) => { if (!reasons.find(r => r.text === text)) reasons.push({ text, sources: sources || [] }); };
+      if (t.withFood === "preferred" || t.withFood === "required") add(sl.meal ? `With food. ${t.withFoodWhy}` : "With food is preferred but no meal fits. Take it with a snack if you can.", t.withFoodSources);
+      if (sl.meal && it.supp.fatSoluble && sl.mealId === settings.mainMeal && (t.withFood === "preferred" || t.withFood === "required")) add("Placed at your main meal, which usually has the most fat.", []);
+      if (t.withFood === "avoid") add(sl.empty ? `Empty stomach. ${t.withFoodWhy}` : sl.meal ? "Taken with a meal as a fallback; absorption is lower with food." : "The closest to an empty stomach that your day allows.", t.withFoodSources);
+      for (const p of avoidPairs.filter(p => p.a === i || p.b === i)) {
+        const o = p.a === i ? p.b : p.a;
+        add(p.split ? `Split dose, at least ${p.gap} h from the other part. ${p.rule.why}` : `At least ${p.gap} h from ${items[o].supp.name}. ${p.rule.why}`, p.rule.sources);
+      }
+      for (const r of RULES.filter(r => r.owner === it.id && r.type === "avoid" && CTX[r.with] && (drinks[r.with] || []).length))
+        add(`Clear of ${CTX[r.with].label.toLowerCase()}: have it at least ${r.gapHours.contextBeforeMin} h before or ${r.gapHours.contextAfterMin} h after. ${r.why}`, r.sources);
+      for (const p of pairs.filter(p => (p.a === i || p.b === i) && best.assign[p.a].id === best.assign[p.b].id))
+        add(`Together with ${items[p.a === i ? p.b : p.a].supp.name}. ${p.rule.why}`, p.rule.sources);
+      if (!reasons.length) {
+        const mates = [...new Set(items.filter((_, j) => j !== i && best.assign[j].id === sl.id).map(x => x.supp.name))];
+        add(mates.length ? `No timing constraints. Placed with ${mates.join(", ")} so you have fewer times to remember.` : "No timing constraints.", []);
+      }
+      const f = it.rf.form;
+      const pct = pctDV(it.supp, it.partDose, region);
+      row(sl).items.push({
+        id: it.id,
+        name: it.rf.blend ? `${it.supp.name} blend` : f.name,
+        part: it.parts > 1 ? `part ${it.part} of ${it.parts}` : "",
+        dose: it.partDose != null ? `${fmtNum(it.partDose)} ${it.supp.doseUnit}` : "",
+        pct,
+        absorption: it.rf.blend ? "unclear" : f.absorption,
+        isRef: !it.rf.blend && f.isReference,
+        evidence: it.rf.blend ? null : f.evidence,
+        unsure: !!it.rf.unsure,
+        reasons,
+        formSources: f && !it.rf.blend ? f.sources : [],
+      });
+      if (sl.meal && t.mealAdvice) {
+        const r = row(sl), key = t.mealAdvice.key || it.id, ex = r.mealAdvice.find(a => a.key === key);
+        if (ex) { if (!ex.for.includes(it.supp.name)) ex.for.push(it.supp.name); if (t.mealAdvice.text.length > ex.text.length) ex.text = t.mealAdvice.text; }
+        else r.mealAdvice.push({ key, text: t.mealAdvice.text, for: [it.supp.name], sources: t.mealAdvice.sources });
+      }
+    });
+    items.forEach((it, i) => {
+      const na = it.timing.nearbyMealAdvice;
+      if (!na || best.assign[i].empty) return;
+      for (const sl of slots.filter(s => s.meal && Math.abs(s.t - best.assign[i].t) <= na.withinHours && s.id !== best.assign[i].id))
+        row(sl).mealAdvice.push({ key: it.id + "-near", text: na.text, for: [`${it.supp.name} at ${fmt(best.assign[i].t)}`], sources: na.sources });
+    });
+    out.schedule = [...rows.values()].sort((a, b) => a.t - b.t);
+  }
+  const missingDose = [];
+  for (const it of items.filter(x => x.part === 1)) {
+    const lines = [], u = it.supp.doseUnit;
+    const lim = it.supp.reference?.[region]?.upperLimit;
+    if (it.dose != null && lim && lim.amount != null && it.dose > lim.amount) {
+      const base = `Your ${fmtNum(it.dose)} ${u}/day is above`;
+      const txt = lim.kind === "UL" ? `${base} the ${REG.label} upper limit of ${fmtNum(lim.amount)} ${u}/day, the highest daily intake considered unlikely to cause harm.`
+        : lim.kind === "safe-level" ? `${base} the ${REG.label} safe level of intake of ${fmtNum(lim.amount)} ${u}/day.`
+        : `${base} ${fmtNum(lim.amount)} ${u}/day.`;
+      lines.push({ kind: "limit", text: `${txt} ${lim.note || ""}`.trim(), sources: lim.sources });
+    }
+    for (const r of it.supp.rules) {
+      if (r.type === "doseWarning" && it.dose != null && it.dose >= (r.appliesWhen?.selfDailyMgAtLeast ?? Infinity)) lines.push({ kind: "dose", text: r.why, sources: r.sources });
+      if (r.type === "medication" && medications.includes(r.with)) lines.push({ kind: "med", text: `With ${DATA.externalRefs[r.with].label}: ${r.why}${r.action ? " " + r.action : ""}`, sources: r.sources });
+    }
+    if (lines.length) out.warnings.push({ name: it.supp.name + (it.dose != null ? ` ${fmtNum(it.dose)} ${u}` : ""), lines, medOnly: lines.every(l => l.kind === "med") });
+    const doseMatters = (lim && lim.amount != null) || it.supp.rules.some(r => r.type === "doseWarning") || RULES.some(r => r.with === it.id && r.appliesWhen?.otherDoseMgAtLeast != null);
+    if (it.dose == null && doseMatters) missingDose.push(it.supp.name);
+  }
+  if (missingDose.length) out.notes.push({ text: `Add a dose for ${missingDose.join(", ")} in Supplements to check it against upper limits.`, sources: [] });
+  for (const [cid, c] of Object.entries(CTX)) {
+    if (!(drinks[cid] || []).length) continue;
+    for (const r of c.rules.filter(r => r.type === "dailyNote" && items.find(i => i.id === r.with))) out.notes.push({ text: `${c.label} and ${SUPP[r.with].name}: ${r.why}`, sources: r.sources });
+  }
+  return out;
+}
+function fmtNum(n) { return Number(n).toLocaleString("en-US", { maximumFractionDigits: 1 }); }
+function pctDV(supp, amount, region) {
+  const dv = supp.reference?.[region]?.dailyValue;
+  if (!dv || amount == null) return "";
+  return `${Math.round((amount / dv.amount) * 100)}${DATA.meta.regions[region].dailyValueLabel}`;
+}
+
+/* ============================================================
+   State and storage
+   ============================================================ */
+const KEY = "stax.v1";
+const todayISO = () => { const d = new Date(); d.setHours(12, 0, 0, 0); return iso(d); };
+function iso(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function parseISO(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d, 12); }
+function defaultState() {
+  return {
+    v: 1, dataset: DATA.datasetVersion, region: null,
+    settings: {
+      wake: "07:00", bedtime: "22:30",
+      meals: [
+        { id: "breakfast", label: "Breakfast", time: "07:30", on: true },
+        { id: "lunch", label: "Lunch", time: "12:30", on: true },
+        { id: "dinner", label: "Dinner", time: "18:30", on: true },
+      ],
+      mainMeal: "dinner",
+      drinks: { coffee: [], tea: [], "herbal-tea": [] },
+    },
+    stack: {},
+    meds: [],
+  };
+}
+function load() {
+  try { const raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {}
+  return defaultState();
+}
+function migrate(s) {
+  const d = defaultState();
+  if (!s || s.v !== 1) return d;
+  return { ...d, ...s, settings: { ...d.settings, ...s.settings, drinks: { ...d.settings.drinks, ...(s.settings?.drinks || {}) } } };
+}
+let state = load();
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+function autoRegion() {
+  let tz = "";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+  const usPrefixes = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage",
+    "America/Detroit", "America/Boise", "America/Indiana", "America/Kentucky", "America/North_Dakota", "America/Juneau", "America/Adak", "Pacific/Honolulu", "America/Puerto_Rico"];
+  if (usPrefixes.some(p => tz.startsWith(p))) return "us";
+  if (!tz) { const lang = (navigator.language || "").toLowerCase(); if (lang === "en-us") return "us"; }
+  return "eu";
+}
+const region = () => state.region || autoRegion();
+
+/* ============================================================
+   Week logic
+   ============================================================ */
+function itemsOn(date) {
+  const out = [];
+  for (const [id, it] of Object.entries(state.stack)) {
+    if (!it.on) continue;
+    const freq = it.freq || "daily";
+    if (freq === "alternate") {
+      const days = Math.round((parseISO(date) - parseISO(it.start || todayISO())) / 86400000);
+      if (((days % 2) + 2) % 2 !== 0) continue;
+    }
+    if (freq === "weekly" && parseISO(date).getDay() !== (it.weekday ?? parseISO(it.start || todayISO()).getDay())) continue;
+    out.push({ id, form: it.form || SUPP[id].defaultForm, dose: it.dose === "" || it.dose == null ? null : Number(it.dose) });
+  }
+  return out;
+}
+const cache = new Map();
+function planFor(date) {
+  const stack = itemsOn(date);
+  const settings = { ...state.settings, meals: state.settings.meals.filter(m => m.on) };
+  const key = JSON.stringify([stack, settings, state.meds, region()]);
+  if (!cache.has(key)) cache.set(key, stack.length ? solve(settings, stack, state.meds, region()) : null);
+  return { stack, plan: cache.get(key) };
+}
+
+/* ============================================================
+   Rendering helpers
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function sourceLabel(s) {
+  if (/Office of Dietary Supplements/.test(s.authors || "")) return `NIH: ${s.title.split(":")[0]}`;
+  if (/Food and Drug Administration/.test(s.authors || "")) return "FDA Daily Values";
+  if (s.type === "regulation") return "EU Reg. 1169/2011";
+  const who = (s.authors || "").split(",")[0].replace(/ et al\.?$/, "").trim();
+  return who && s.year ? `${who} ${s.year}` : s.title.split(":")[0];
+}
+function srcLinks(ids) {
+  const uniq = [...new Set(ids || [])].filter(id => DATA.sources[id]);
+  if (!uniq.length) return "";
+  return `<div class="src">${uniq.map(id => { const s = DATA.sources[id]; const short = sourceLabel(s); return `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title)}">${esc(short)}</a>`; }).join("")}</div>`;
+}
+function reasonHTML(x) {
+  const i = x.text.search(/\.\s/);
+  const head = i > 0 ? x.text.slice(0, i + 1) : x.text, tail = i > 0 ? x.text.slice(i + 2) : "";
+  return `<li><span>${esc(head)}</span>${tail ? ` <span class="more">${esc(tail)}</span>` : ""}${srcLinks(x.sources)}</li>`;
+}
+function chip(abs, isRef) {
+  return `<span class="chip ${abs}">${isRef ? ABS_REF : ABS[abs]}</span>`;
+}
+
+/* ---------- Plan view ---------- */
+let viewDate = todayISO();
+let weekStart = startOfWeek(viewDate);
+function startOfWeek(s) { const d = parseISO(s); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return iso(d); }
+function addDays(s, n) { const d = parseISO(s); d.setDate(d.getDate() + n); return iso(d); }
+
+function renderPlan() {
+  const root = $("#plan-root");
+  const active = Object.values(state.stack).filter(x => x.on).length;
+  if (!active) {
+    root.innerHTML = `<div class="empty"><div><div class="eyebrow">Weekly plan</div><h2>${STR.emptyTitle}</h2></div><p class="lead">${STR.emptyBody}</p>
+      <div class="row"><a class="btn primary" href="#stack" style="text-decoration:none">${STR.goStack}</a><button class="btn" id="load-example">${STR.example}</button></div></div>`;
+    $("#load-example").onclick = loadExample;
+    return;
+  }
+  const days = [...Array(7)].map((_, i) => addDays(weekStart, i));
+  const fmtDay = new Intl.DateTimeFormat("en-GB", { weekday: "short" });
+  const fmtLong = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+  const strip = days.map(d => {
+    const n = itemsOn(d).length;
+    const dots = Math.min(n, 4);
+    return `<button class="day${d === todayISO() ? " today" : ""}" data-date="${d}" aria-pressed="${d === viewDate}" aria-label="${fmtDay.format(parseISO(d))} ${fmtLong.format(parseISO(d))}, ${n} supplements">
+      <span class="dow">${fmtDay.format(parseISO(d))}</span><span class="dom">${parseISO(d).getDate()}</span><span class="dots">${"<i></i>".repeat(dots)}</span></button>`;
+  }).join("");
+  const { plan } = planFor(viewDate);
+  let html = `<div class="week"><div class="week-head"><button class="btn quiet" id="wk-prev" aria-label="Previous week">‹ Prev</button>
+    <span class="label">${STR.weekOf(fmtLong.format(parseISO(weekStart)))}</span><button class="btn quiet" id="wk-next" aria-label="Next week">Next ›</button></div>
+    <div class="days" role="group" aria-label="Days">${strip}</div></div>`;
+
+  if (!plan) {
+    html += `<p class="lead">${STR.nothingToday}</p>`;
+  } else {
+    const warn = plan.warnings;
+    if (plan.unplaced.length || warn.length) {
+      html += `<div class="alerts" aria-label="${STR.checkThese}">`;
+      for (const u of plan.unplaced) html += `<div class="alert"><div class="title">${esc(u.name)} couldn't be placed</div><div>${esc(u.why)}</div></div>`;
+      for (const w of warn) html += `<div class="alert${w.medOnly ? " med" : ""}"><div class="title">${esc(w.name)}</div><ul>${w.lines.map(l => `<li>${esc(l.text)} ${srcLinks(l.sources)}</li>`).join("")}</ul></div>`;
+      html += `</div>`;
+    }
+    html += `<div class="timeline">`;
+    for (const r of plan.schedule) {
+      const tag = r.meal ? (r.main ? `Meal · ${STR.mainMeal}` : "Meal") : r.kind === "gen" ? "Set by your plan" : "";
+      html += `<div class="slot${r.meal ? " meal" : ""}"><div class="when"><span class="time">${r.time}</span><span class="pin" aria-hidden="true"></span></div>
+        <div class="body"><div class="slot-label">${esc(r.label)}${tag ? `<span class="tag">${tag}</span>` : ""}</div>`;
+      for (const a of r.mealAdvice) html += `<div class="meal-note">${esc(a.text)}<span class="for">For ${esc(a.for.join(" and "))}</span></div>`;
+      for (const it of r.items) {
+        const sub = [it.dose && `<span class="mono">${esc(it.dose)}</span>`, it.pct && `<span class="mono">${esc(it.pct)}</span>`, it.part].filter(Boolean).join(" · ");
+        html += `<details class="dose-card"><summary><span class="name">${esc(it.name)}</span><span class="chev" aria-hidden="true">▶</span>
+          <span class="sub">${sub ? sub + " · " : ""}${chip(it.absorption, it.isRef)}</span></summary>
+          <div class="detail"><div class="eyebrow">${STR.why}</div><ul class="why">${it.reasons.map(x => reasonHTML(x)).join("")}</ul>
+          ${it.unsure ? `<div class="help">${esc(STR.notSureNote(it.name))}</div>` : ""}
+          ${it.evidence ? `<div class="help">Form rating: ${it.isRef ? "reference form" : ABS[it.absorption].toLowerCase()}, evidence ${it.evidence}. ${srcLinks(it.formSources)}</div>` : ""}</div></details>`;
+      }
+      html += `</div></div>`;
+    }
+    html += `</div>`;
+    if (plan.notes.length) html += `<div><div class="eyebrow">${STR.notes}</div><ul class="notes why">${plan.notes.map(n => reasonHTML(n)).join("")}</ul></div>`;
+  }
+  root.innerHTML = html;
+  root.querySelectorAll(".day").forEach(b => b.onclick = () => { viewDate = b.dataset.date; renderPlan(); });
+  $("#wk-prev").onclick = () => { weekStart = addDays(weekStart, -7); viewDate = weekStart; renderPlan(); };
+  $("#wk-next").onclick = () => { weekStart = addDays(weekStart, 7); viewDate = weekStart; renderPlan(); };
+}
+
+/* ---------- Supplements view ---------- */
+function renderCatalogue() {
+  const reg = region();
+  const root = $("#catalogue");
+  root.innerHTML = DATA.supplements.map(s => {
+    const st = state.stack[s.id] || {};
+    const on = !!st.on;
+    const listed = s.forms.filter(f => f.listed);
+    const formId = st.form || s.defaultForm;
+    let body = "";
+    if (on) {
+      const rf = resolveForm(s, formId);
+      const f = rf.form;
+      const opts = listed.map(x => `<option value="${x.id}" ${x.id === formId ? "selected" : ""}>${esc(x.name)} · ${x.isReference ? ABS_REF : ABS[x.absorption]}</option>`).join("")
+        + `<option value="not-sure" ${formId === "not-sure" ? "selected" : ""}>${STR.notSure}</option><option value="blend" ${formId === "blend" ? "selected" : ""}>${STR.blend}</option>`;
+      const note = rf.blend ? `<div class="form-note">${STR.blendNote}</div>`
+        : `<div class="form-note"><div>${chip(f.absorption, f.isReference)} <span class="help">evidence ${f.evidence}</span></div><div>${esc(rf.unsure ? STR.notSureNote(f.name) + " " + f.note : f.note)}</div>${srcLinks(f.sources)}</div>`;
+      const dv = s.reference?.[reg]?.dailyValue;
+      const pct = st.dose != null && st.dose !== "" && dv ? `${Math.round(Number(st.dose) / dv.amount * 100)}${DATA.meta.regions[reg].dailyValueLabel}` : "";
+      const freq = st.freq || "daily";
+      const wd = st.weekday ?? parseISO(st.start || todayISO()).getDay();
+      const wdNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      body = `<div class="supp-body">
+        <div class="field"><label for="form-${s.id}">Form on your label</label><select id="form-${s.id}" data-act="form" data-id="${s.id}">${opts}</select></div>
+        ${note}
+        <div class="fields">
+          <div class="field"><label for="dose-${s.id}">Dose per day (optional)</label>
+            <div class="dose-in"><input id="dose-${s.id}" type="number" inputmode="decimal" min="0" step="any" value="${st.dose ?? ""}" data-act="dose" data-id="${s.id}" placeholder="—"><span class="unit">${esc(s.doseUnit)}</span></div>
+            <span class="help" id="pct-${s.id}">${pct}</span></div>
+          <div class="field"><label for="freq-${s.id}">How often</label><select id="freq-${s.id}" data-act="freq" data-id="${s.id}">
+            <option value="daily" ${freq === "daily" ? "selected" : ""}>${STR.daily}</option>
+            <option value="alternate" ${freq === "alternate" ? "selected" : ""}>${STR.alternate}</option>
+            <option value="weekly" ${freq === "weekly" ? "selected" : ""}>${STR.weekly}</option></select></div>
+          ${freq === "weekly" ? `<div class="field"><label for="wd-${s.id}">On</label><select id="wd-${s.id}" data-act="weekday" data-id="${s.id}">${wdNames.map((n, i) => `<option value="${i}" ${i === wd ? "selected" : ""}>${n}</option>`).join("")}</select></div>` : ""}
+        </div>
+        ${(s.timing.frequencyOptions || []).map(o => `<div class="help">${esc(o.label)}: ${esc(first(o.why))} ${srcLinks(o.sources)}</div>`).join("")}
+      </div>`;
+    }
+    const summary = on ? `${esc(resolveForm(s, formId).label)}${st.dose ? ` · <span class="mono">${fmtNum(st.dose)} ${esc(s.doseUnit)}</span>` : ""}${(st.freq || "daily") !== "daily" ? " · " + (st.freq === "alternate" ? STR.alternate : STR.weekly).toLowerCase() : ""}` : esc(s.aliases.slice(0, 3).join(", "));
+    return `<div class="supp${on ? " on" : ""}"><div class="supp-head"><div class="txt"><div class="n">${esc(s.name)}</div><div class="s">${summary}</div></div>
+      <label class="switch"><input type="checkbox" id="on-${s.id}" data-act="on" data-id="${s.id}" ${on ? "checked" : ""} aria-label="Take ${esc(s.name)}"><span></span></label></div>${body}</div>`;
+  }).join("");
+  root.querySelectorAll("[data-act]").forEach(el => {
+    const ev = el.dataset.act === "dose" ? "input" : "change";
+    el.addEventListener(ev, onCatalogue);
+  });
+  updateCount();
+}
+function onCatalogue(e) {
+  const el = e.target, id = el.dataset.id, act = el.dataset.act;
+  const st = state.stack[id] || (state.stack[id] = { on: false, form: SUPP[id].defaultForm, dose: null, freq: "daily", start: todayISO() });
+  if (act === "on") { st.on = el.checked; if (st.on && !st.start) st.start = todayISO(); }
+  if (act === "form") st.form = el.value;
+  if (act === "freq") { st.freq = el.value; st.start = todayISO(); if (el.value === "weekly") st.weekday = parseISO(todayISO()).getDay(); }
+  if (act === "weekday") st.weekday = Number(el.value);
+  if (act === "dose") {
+    st.dose = el.value === "" ? null : Number(el.value);
+    save(); cache.clear();
+    const dv = SUPP[id].reference?.[region()]?.dailyValue;
+    $(`#pct-${id}`).textContent = st.dose != null && dv ? `${Math.round(st.dose / dv.amount * 100)}${DATA.meta.regions[region()].dailyValueLabel}` : "";
+    return;
+  }
+  save(); cache.clear();
+  const scrollY = window.scrollY;
+  renderCatalogue();
+  window.scrollTo(0, scrollY);
+  const back = document.getElementById(el.id); if (back) back.focus({ preventScroll: true });
+}
+function updateCount() {
+  const n = Object.values(state.stack).filter(x => x.on).length;
+  $("#count").textContent = n ? String(n) : "";
+}
+
+/* ---------- Setup view ---------- */
+function renderSetup() {
+  const s = state.settings, reg = state.region;
+  const drinkRows = Object.entries(CTX).map(([cid, c]) => `
+    <div class="field"><span class="lbl">${esc(c.label)}</span>
+      <div class="times">${(s.drinks[cid] || []).map((t, i) => `<span class="tchip">${t}<button data-act="rm-drink" data-ctx="${cid}" data-i="${i}" aria-label="Remove ${esc(c.label)} at ${t}">×</button></span>`).join("")}
+        <span class="add-time"><input type="time" id="add-${cid}" aria-label="Add a time for ${esc(c.label)}"><button class="btn" data-act="add-drink" data-ctx="${cid}">Add</button></span></div></div>`).join("");
+  const meds = Object.entries(DATA.externalRefs).filter(([, v]) => v.kind === "medication");
+  $("#setup-root").innerHTML = `
+  <div class="card"><h3>Reference values</h3>
+    <p class="help">Changes which daily values and upper limits the plan uses. Timing is the same everywhere.</p>
+    <div class="seg" role="group" aria-label="Reference values">
+      <button data-act="region" data-v="" aria-pressed="${!reg}">Auto (${autoRegion().toUpperCase()})</button>
+      <button data-act="region" data-v="eu" aria-pressed="${reg === "eu"}">EU</button>
+      <button data-act="region" data-v="us" aria-pressed="${reg === "us"}">US</button></div></div>
+
+  <div class="card"><h3>Waking day</h3>
+    <div class="fields"><div class="field"><label for="wake">Wake up</label><input type="time" id="wake" value="${s.wake}" data-act="set" data-k="wake"></div>
+    <div class="field"><label for="bedtime">Bedtime</label><input type="time" id="bedtime" value="${s.bedtime}" data-act="set" data-k="bedtime"></div></div></div>
+
+  <div class="card"><h3>Meals</h3>
+    <p class="help">Mark your main meal: fat-soluble vitamins and fish oil go there by default.</p>
+    ${s.meals.map(m => `<div class="meal-row"><label class="check"><input type="checkbox" id="meal-on-${m.id}" data-act="meal-on" data-id="${m.id}" ${m.on ? "checked" : ""}><span class="mn">${esc(m.label)}</span></label>
+      <input type="time" id="meal-t-${m.id}" value="${m.time}" data-act="meal-t" data-id="${m.id}" aria-label="${esc(m.label)} time" ${m.on ? "" : "disabled"}>
+      <label class="check help main-pick"><input type="radio" name="main" id="main-${m.id}" data-act="main" data-id="${m.id}" ${s.mainMeal === m.id ? "checked" : ""} ${m.on ? "" : "disabled"}>Main meal</label></div>`).join("")}</div>
+
+  <div class="card"><h3>Coffee and tea</h3>
+    <p class="help">These block iron absorption, so the plan keeps iron clear of them. Add the times you usually drink them.</p>${drinkRows}</div>
+
+  <div class="card"><h3>Medicines (optional)</h3>
+    <p class="help">Only used to show interaction notes. Nothing is scheduled for medicines.</p>
+    ${meds.map(([id, m]) => `<label class="check"><input type="checkbox" id="med-${id}" data-act="med" data-id="${id}" ${state.meds.includes(id) ? "checked" : ""}>${esc(m.label)}</label>`).join("")}</div>
+
+  <div class="card"><h3>Backup</h3>
+    <p class="help">Your plan is stored only in this browser. Phone browsers can clear it, so keep a backup.</p>
+    <div class="row"><button class="btn" data-act="download">Download file</button><button class="btn" data-act="copy">Copy as text</button></div>
+    <div class="field"><label for="io">Backup text</label><textarea id="io" spellcheck="false" placeholder="Paste a backup here to restore it"></textarea></div>
+    <div class="row"><button class="btn" data-act="restore">Restore from text</button>
+      <label class="btn" for="file-in" style="cursor:pointer">Restore from file</label><input type="file" id="file-in" accept=".json,application/json" hidden></div>
+    <div class="status" id="io-status" role="status"></div>
+    <div class="row"><button class="btn quiet" data-act="reset">Clear everything</button><span id="reset-confirm"></span></div></div>`;
+  const root = $("#setup-root");
+  root.querySelectorAll("[data-act]").forEach(el => el.addEventListener(el.tagName === "BUTTON" ? "click" : "change", onSetup));
+  $("#file-in").addEventListener("change", onFile);
+}
+function status(msg, err) { const el = $("#io-status"); el.textContent = msg; el.className = "status" + (err ? " err" : ""); }
+function changed(rerender) { save(); cache.clear(); updateRegionLabel(); if (rerender) { const y = window.scrollY; renderSetup(); window.scrollTo(0, y); } }
+function onSetup(e) {
+  const el = e.currentTarget, act = el.dataset.act, s = state.settings;
+  if (act === "region") { state.region = el.dataset.v || null; changed(true); return; }
+  if (act === "set") { if (el.value) s[el.dataset.k] = el.value; changed(false); return; }
+  if (act === "meal-on") { const m = s.meals.find(x => x.id === el.dataset.id); m.on = el.checked; if (!m.on && s.mainMeal === m.id) s.mainMeal = (s.meals.find(x => x.on) || {}).id || null; changed(true); return; }
+  if (act === "meal-t") { const m = s.meals.find(x => x.id === el.dataset.id); if (el.value) m.time = el.value; changed(false); return; }
+  if (act === "main") { s.mainMeal = el.dataset.id; changed(false); return; }
+  if (act === "add-drink") { const inp = $(`#add-${el.dataset.ctx}`); if (!inp.value) { inp.focus(); return; } const arr = s.drinks[el.dataset.ctx]; if (!arr.includes(inp.value)) arr.push(inp.value); arr.sort(); changed(true); return; }
+  if (act === "rm-drink") { s.drinks[el.dataset.ctx].splice(Number(el.dataset.i), 1); changed(true); return; }
+  if (act === "med") { state.meds = el.checked ? [...new Set([...state.meds, el.dataset.id])] : state.meds.filter(x => x !== el.dataset.id); changed(false); return; }
+  if (act === "download") {
+    const blob = new Blob([backupText()], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `stax-backup-${todayISO()}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    $("#io").value = backupText(); status("If no file downloaded, use Copy as text instead.");
+    return;
+  }
+  if (act === "copy") {
+    const txt = backupText(); $("#io").value = txt;
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => status(STR.copied), () => { $("#io").select(); status(STR.copyFailed, true); });
+    else { $("#io").select(); status(STR.copyFailed, true); }
+    return;
+  }
+  if (act === "restore") { restore($("#io").value); return; }
+  if (act === "reset") {
+    $("#reset-confirm").innerHTML = `<button class="btn" id="reset-yes">Yes, clear it</button> <button class="btn quiet" id="reset-no">Keep it</button>`;
+    $("#reset-yes").onclick = () => { state = defaultState(); save(); cache.clear(); renderAll(); status(STR.resetDone); };
+    $("#reset-no").onclick = () => { $("#reset-confirm").innerHTML = ""; };
+  }
+}
+function backupText() { return JSON.stringify({ app: "stax", ...state, dataset: DATA.datasetVersion, exported: new Date().toISOString() }, null, 1); }
+function restore(txt) {
+  try {
+    const obj = JSON.parse(txt);
+    if (obj.app !== "stax" || obj.v !== 1) throw new Error("not stax");
+    for (const id of Object.keys(obj.stack || {})) if (!SUPP[id]) delete obj.stack[id];
+    state = migrate(obj); save(); cache.clear(); renderAll(); status(STR.imported);
+  } catch (e) { status(STR.importBad, true); }
+}
+function onFile(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = () => { $("#io").value = r.result; restore(r.result); }; r.readAsText(f);
+}
+
+/* ---------- Example ---------- */
+function loadExample() {
+  const t = todayISO();
+  state.stack = {
+    "vitamin-d": { on: true, form: "d3", dose: 25, freq: "daily", start: t },
+    "vitamin-k": { on: true, form: "mk7", dose: 100, freq: "daily", start: t },
+    "magnesium": { on: true, form: "glycinate", dose: 200, freq: "daily", start: t },
+    "iron": { on: true, form: "ferrous-bisglycinate", dose: 25, freq: "alternate", start: t },
+    "vitamin-c": { on: true, form: "ascorbic-acid", dose: 250, freq: "daily", start: t },
+    "zinc": { on: true, form: "picolinate", dose: 15, freq: "daily", start: t },
+  };
+  state.settings.drinks.coffee = ["07:30"];
+  save(); cache.clear(); renderAll();
+}
+
+/* ============================================================
+   Views
+   ============================================================ */
+const VIEWS = ["plan", "stack", "setup"];
+function showView() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "plan";
+  for (const name of VIEWS) $(`#view-${name}`).hidden = name !== v;
+  document.querySelectorAll("nav.views a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
+  if (v === "plan") renderPlan();
+  if (v === "stack") renderCatalogue();
+  if (v === "setup") renderSetup();
+}
+function updateRegionLabel() { const r = region().toUpperCase(); $("#region-label").textContent = state.region ? STR.region(r) : STR.regionAuto(r); }
+function renderAll() { updateRegionLabel(); updateCount(); showView(); }
+window.addEventListener("hashchange", () => { showView(); window.scrollTo(0, 0); });
+renderAll();
+</script>
+
+</body>
+</html>
