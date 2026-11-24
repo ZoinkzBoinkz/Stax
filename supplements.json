@@ -1,0 +1,3854 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "0.10.0",
+  "lastReviewed": "2026-11-03",
+  "meta": {
+    "description": "Stax supplement dataset. Thirteen supplements. Every form rating and every rule points to entries in `sources`.",
+    "enums": {
+      "absorption": {
+        "higher": "Absorbed better than the reference form of this supplement",
+        "similar": "No meaningful difference from the reference form",
+        "lower": "Absorbed worse than the reference form",
+        "unclear": "Claims exist but the data are too thin or conflicting to rate"
+      },
+      "evidence": {
+        "strong": "Multiple controlled human studies or a meta-analysis agree",
+        "moderate": "At least one decent controlled human study, not yet well replicated",
+        "weak": "Small, indirect, or differently-measured studies only",
+        "marketing": "Claim circulates commercially with no supporting human data"
+      },
+      "ruleType": {
+        "avoid": "Do not place in the same slot; respect gapHours if given",
+        "pair": "Bonus for placing in the same slot",
+        "doseWarning": "Not a timing rule. Show a warning when the combined daily dose crosses a threshold",
+        "medication": "Flag-only. Never scheduled; shown as a warning with the timing gap",
+        "dailyNote": "Not a timing rule. An effect on the day's total balance; shown as info, never moves a supplement",
+        "preferApart": "Soft separation: a different time is preferred when it costs little, but the pair may share a time. Used where human evidence conflicts.",
+        "noInteraction": "Checked and not supported: no effect on scheduling. When both items share a time, the plan explains why that's fine, with sources."
+      },
+      "gapBasis": {
+        "measured": "The gap was tested directly in a study",
+        "convention": "The interaction is sourced, but the specific gap length is a common clinical convention, not a measured value"
+      },
+      "withFood": {
+        "required": "Only meal slots",
+        "preferred": "Meal slots score higher; waking slot allowed",
+        "neutral": "No preference",
+        "avoid": "Empty-stomach slots score higher"
+      },
+      "preferredSlots": {
+        "morning": "Any slot before 12:00"
+      },
+      "limitKind": {
+        "UL": "Tolerable upper intake level: the highest daily intake considered unlikely to cause harm",
+        "safe-level": "No firm upper limit could be set; this is the highest intake the authority judged safe",
+        "guidance": "Not a formal upper limit; an authority's statement that intakes up to this amount are safe",
+        "none": "No upper limit has been set, usually because of low toxicity or too little data"
+      },
+      "category": {
+        "vitamin": "Vitamin",
+        "mineral": "Mineral",
+        "fatty acid": "Fatty acid",
+        "other": "Other nutrient"
+      }
+    },
+    "solverNotes": [
+      "avoid rules are symmetric: a rule on A against B also blocks B against A. Each pair is stored once.",
+      "Rules whose `with` target is not in the user's stack are ignored.",
+      "Targets listed in `externalRefs` are not yet full dataset entries; they exist so rules can reference them now.",
+      "Contexts are fixed anchors from user settings (times of day). A supplement rule pointing at a context blocks a window around each occurrence instead of a slot."
+    ],
+    "researchedNoRule": [
+      {
+        "topic": "Coffee or tea and zinc absorption",
+        "finding": "No human absorption study found. Claims online trace back to rat studies or unsourced figures. No rule added."
+      },
+      {
+        "topic": "Tea and thiamine (B1)",
+        "finding": "Antithiamine claims exist, but the human studies could not be retrieved for verification. No rule added yet."
+      },
+      {
+        "topic": "Caffeine and vitamin D",
+        "finding": "Only cell-culture data found. No rule added."
+      },
+      {
+        "topic": "Calcium and magnesium competing for absorption",
+        "finding": "Not supported by human studies at normal or supplemental doses. Stored as a noInteraction rule on magnesium so the plan can explain it."
+      },
+      {
+        "topic": "Vitamin C and sodium selenite",
+        "finding": "Often claimed that vitamin C taken with selenite blocks its absorption. The one human isotope study verified found the opposite direction at the diet level: low vitamin C intake (about 20 mg/day) was linked to lower selenite absorption than 1 g/day. No timing rule added.",
+        "sources": [
+          "martin1989"
+        ]
+      }
+    ],
+    "timingDefaults": {
+      "defaultAvoidGapHours": 2,
+      "defaultAvoidGapBasis": "convention",
+      "defaultAvoidGapNote": "Applied to avoid rules that give no gap of their own. Slots can be minutes apart (waking vs breakfast), so 'different slot' alone is not separation.",
+      "emptyStomach": {
+        "afterMealMinHours": 2,
+        "beforeMealMinHours": 1,
+        "basis": "convention",
+        "note": "A non-meal slot only counts as empty-stomach if it is at least 2 h after the previous meal and 1 h before the next. Common clinical convention, not a measured value."
+      }
+    },
+    "formTimingNote": "A form may carry `timingOverride`, whose fields replace the supplement's timing fields for that form (e.g. calcium carbonate requires food, citrate does not).",
+    "maxPerDoseNote": "`timing.maxPerDose` splits a dose above the threshold across separate times. Only applied when the user entered a dose.",
+    "formListing": {
+      "rule": "Only forms with `listed: true` appear in the dropdown. Unlisted forms stay in the data so the reference form and rules remain intact.",
+      "extraOptions": {
+        "not-sure": "Uses the reference form for timing and rating; shows a note that checking the label gives a more accurate plan. 'Other / not listed' maps here too.",
+        "blend": "Uses the strictest timing among the supplement's listed forms and rates absorption as unclear."
+      }
+    },
+    "regions": {
+      "eu": {
+        "label": "EU",
+        "dailyValueLabel": "% NRV",
+        "dailyValueName": "EU reference intake (NRV)",
+        "limitAuthority": "EFSA"
+      },
+      "us": {
+        "label": "US",
+        "dailyValueLabel": "% DV",
+        "dailyValueName": "US Daily Value",
+        "limitAuthority": "US National Academies"
+      },
+      "note": "The region toggle only changes which reference values are shown and which limits trigger warnings. Timing rules are the same in both."
+    },
+    "componentsNote": "A combination product (doseMode 'components') has no single dose. Its `components` carry their own reference values; only components with an upper limit get a dose field. A component form may change limits (`reference`) or timing (`timingOverride`).",
+    "claimsNote": "euClaims are quoted word for word from the EU list of permitted health claims (Reg. 432/2012). A claim is only allowed on a product that contains enough of the nutrient: at least a 'source of' it (15% of the NRV per daily portion for supplements) unless conditions say otherwise. roleInBody is a plain-language summary of the NIH fact sheet; it is not a health claim."
+  },
+  "slots": {
+    "note": "Slots are generated by the scheduler from the user's meal, wake, bedtime and drink times. Only slots that end up used are shown.",
+    "anchors": [
+      "wake",
+      "meals",
+      "bedtime"
+    ]
+  },
+  "externalRefs": {
+    "warfarin-vka": {
+      "kind": "medication",
+      "label": "Warfarin and other vitamin K antagonists"
+    },
+    "bisphosphonates": {
+      "kind": "medication",
+      "label": "Oral bisphosphonates (e.g. alendronate)"
+    },
+    "quinolone-tetracycline": {
+      "kind": "medication",
+      "label": "Quinolone and tetracycline antibiotics"
+    },
+    "penicillamine": {
+      "kind": "medication",
+      "label": "Penicillamine"
+    },
+    "levothyroxine": {
+      "kind": "medication",
+      "label": "Levothyroxine (thyroid hormone)"
+    },
+    "dolutegravir": {
+      "kind": "medication",
+      "label": "Dolutegravir (HIV medication)"
+    },
+    "quinolones": {
+      "kind": "medication",
+      "label": "Quinolone antibiotics (e.g. ciprofloxacin)"
+    },
+    "acid-suppressants": {
+      "kind": "medication",
+      "label": "Acid-reducing medicines (PPIs such as omeprazole, H2 blockers)"
+    },
+    "metformin": {
+      "kind": "medication",
+      "label": "Metformin"
+    },
+    "methotrexate": {
+      "kind": "medication",
+      "label": "Methotrexate"
+    },
+    "antiepileptics": {
+      "kind": "medication",
+      "label": "Anti-seizure medicines (phenytoin, phenobarbital, carbamazepine, valproate)"
+    },
+    "antiplatelets": {
+      "kind": "medication",
+      "label": "Antiplatelet medicines (e.g. aspirin, clopidogrel)"
+    },
+    "insulin": {
+      "kind": "medication",
+      "label": "Insulin"
+    },
+    "cancer-treatment": {
+      "kind": "medication",
+      "label": "Cancer treatment (chemotherapy or radiotherapy)"
+    }
+  },
+  "supplements": [
+    {
+      "id": "vitamin-d",
+      "name": "Vitamin D",
+      "aliases": [
+        "D3",
+        "cholecalciferol",
+        "D2",
+        "ergocalciferol"
+      ],
+      "category": "vitamin",
+      "fatSoluble": true,
+      "referenceForm": "d3",
+      "defaultForm": "d3",
+      "forms": [
+        {
+          "id": "d3",
+          "name": "Vitamin D3 (cholecalciferol)",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. Raises blood 25(OH)D more effectively than D2.",
+          "sources": [
+            "tripkovic2012",
+            "tripkovic2017"
+          ],
+          "listed": true
+        },
+        {
+          "id": "d2",
+          "name": "Vitamin D2 (ergocalciferol)",
+          "absorption": "lower",
+          "evidence": "strong",
+          "note": "Less effective at raising 25(OH)D. The 2012 meta-analysis found the gap clearest with large bolus doses and not significant with daily dosing. A later, larger RCT using a daily 15 µg dose found D3 more than twice as effective. Both forms do raise vitamin D status.",
+          "sources": [
+            "tripkovic2012",
+            "tripkovic2017",
+            "lanhamnew2017"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "Fat-soluble, so it is absorbed with dietary fat. In one study peak plasma D3 was about 32% higher with a fat-containing meal than a fat-free one. A second study found no difference in 25(OH)D after 90 days between meal conditions, so the long-term benefit of timing is unproven.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "dawsonhughes2015",
+          "dawsonhughes2013"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "mealAdvice": {
+          "text": "Make this a meal with some fat in it (eggs, oily fish, nuts, cheese, olive oil). It doesn't need to be a high-fat meal: in one study a low-fat meal absorbed vitamin D slightly better than a high-fat one, and both beat a fat-free meal.",
+          "sources": [
+            "dawsonhughes2015",
+            "dawsonhughes2013"
+          ],
+          "key": "fat-meal"
+        }
+      },
+      "rules": [],
+      "notes": [
+        "D and K are often sold together. Both are fat-soluble, so the solver will tend to place them in the same meal slot anyway. There is no sourced rule that taking them together improves absorption of either, so no pair rule is stored."
+      ],
+      "doseUnit": "µg",
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 5,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 100,
+            "note": "1 µg = 40 IU, so 100 µg = 4,000 IU.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 20,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 100,
+            "note": "1 µg = 40 IU, so 100 µg = 4,000 IU.",
+            "sources": [
+              "ods-vitd"
+            ]
+          }
+        }
+      },
+      "altUnits": {
+        "IU": {
+          "perUnit": 0.025,
+          "note": "1 µg = 40 IU",
+          "sources": [
+            "ods-vitd"
+          ]
+        }
+      },
+      "roleInBody": {
+        "text": "Helps the gut absorb calcium and phosphorus, which are needed to build and keep bones. Also involved in muscle and nerve function and the immune system.",
+        "sources": [
+          "ods-vitd"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Vitamin D contributes to normal absorption/utilisation of calcium and phosphorus"
+          },
+          {
+            "text": "Vitamin D contributes to normal blood calcium levels"
+          },
+          {
+            "text": "Vitamin D contributes to the maintenance of normal bones"
+          },
+          {
+            "text": "Vitamin D contributes to the maintenance of normal muscle function"
+          },
+          {
+            "text": "Vitamin D contributes to the maintenance of normal teeth"
+          },
+          {
+            "text": "Vitamin D contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Vitamin D has a role in the process of cell division"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "vitamin-k",
+      "name": "Vitamin K",
+      "aliases": [
+        "K2",
+        "MK-7",
+        "MK-4",
+        "menaquinone",
+        "K1",
+        "phylloquinone"
+      ],
+      "category": "vitamin",
+      "fatSoluble": true,
+      "referenceForm": "k1",
+      "defaultForm": "mk7",
+      "forms": [
+        {
+          "id": "k1",
+          "name": "Vitamin K1 (phylloquinone)",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. Absorbed well from supplements but cleared from the blood within hours.",
+          "sources": [
+            "schurgers2007",
+            "ods-vitk"
+          ],
+          "listed": false
+        },
+        {
+          "id": "mk7",
+          "name": "Vitamin K2 as MK-7",
+          "absorption": "higher",
+          "evidence": "moderate",
+          "note": "Absorbed at least as well as K1 and has a much longer half-life (about 3 days), so it builds up to stable blood levels with daily intake. Exact timing matters little.",
+          "sources": [
+            "schurgers2007",
+            "sato2012"
+          ],
+          "listed": true
+        },
+        {
+          "id": "mk4",
+          "name": "Vitamin K2 as MK-4",
+          "absorption": "lower",
+          "evidence": "weak",
+          "note": "At nutritional doses (60 to 420 µg), MK-4 was not detectable in serum, while MK-7 was. Small study (10 women). High-dose pharmaceutical MK-4 is a different situation and is not rated here.",
+          "sources": [
+            "sato2012"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "Fat-soluble. Absorbed in the small intestine via bile-dependent micelles, like dietary fat.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "ods-vitk"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "slotFlexibility": "high",
+        "slotFlexibilityWhy": "MK-7's long half-life means time of day has little effect on blood levels.",
+        "mealAdvice": {
+          "text": "Make this a meal with some fat in it, since vitamin K is absorbed together with dietary fat.",
+          "sources": [
+            "ods-vitk"
+          ],
+          "key": "fat-meal"
+        }
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "warfarin-vka",
+          "severity": "high",
+          "why": "Vitamin K directly counteracts warfarin-type anticoagulants. People on these drugs need a consistent vitamin K intake. MK-7 doses of 50 µg/day or more may interfere with anticoagulant treatment in a clinically relevant way.",
+          "action": "Do not start, stop or change vitamin K without the prescriber's input.",
+          "strength": "strong",
+          "sources": [
+            "ods-vitk",
+            "schurgers2007"
+          ]
+        }
+      ],
+      "doseUnit": "µg",
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 75,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "none",
+            "note": "No upper limit set (insufficient data).",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 120,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "none",
+            "note": "No upper limit set because of low potential for toxicity.",
+            "sources": [
+              "ods-vitk"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "Needed to activate proteins for blood clotting, made in the liver. Also activates proteins involved in bone metabolism.",
+        "sources": [
+          "ods-vitk"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Vitamin K contributes to normal blood clotting"
+          },
+          {
+            "text": "Vitamin K contributes to the maintenance of normal bones"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "magnesium",
+      "name": "Magnesium",
+      "aliases": [
+        "Mg",
+        "magnesium glycinate",
+        "magnesium citrate",
+        "magnesium oxide"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "citrate",
+      "defaultForm": "citrate",
+      "forms": [
+        {
+          "id": "citrate",
+          "name": "Magnesium citrate",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. Dissolves well even without stomach acid and is consistently better absorbed than oxide. Has a laxative effect at higher doses.",
+          "sources": [
+            "walker2003",
+            "lindberg1990",
+            "ods-mg"
+          ],
+          "listed": true
+        },
+        {
+          "id": "chloride-lactate-aspartate",
+          "name": "Magnesium chloride / lactate / aspartate",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "Soluble salts with absorption similar to each other and clearly better than oxide.",
+          "sources": [
+            "firoz2001",
+            "ods-mg"
+          ],
+          "listed": false
+        },
+        {
+          "id": "glycinate",
+          "name": "Magnesium glycinate (bisglycinate)",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "Widely marketed as the best-absorbed form, but head-to-head data do not show it beating citrate. In a 2003 RCT an amino-acid chelate did not outperform citrate. In a 2024 crossover study bisglycinate did not significantly raise plasma magnesium while citrate did. Often reported as gentler on the gut, but there is little controlled data on that.",
+          "sources": [
+            "walker2003",
+            "pajuelo2024"
+          ],
+          "listed": true
+        },
+        {
+          "id": "oxide",
+          "name": "Magnesium oxide",
+          "absorption": "lower",
+          "evidence": "strong",
+          "note": "High magnesium content per tablet, but poorly absorbed: about 4% fractional absorption in one study, and no better than placebo over 60 days in another. The large number on the label overstates what you actually absorb.",
+          "sources": [
+            "firoz2001",
+            "walker2003",
+            "lindberg1990"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "Mainly for tolerability. High supplemental doses commonly cause diarrhoea, nausea and cramping.",
+        "withFoodEvidence": "weak",
+        "withFoodSources": [
+          "ods-mg"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily"
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "bisphosphonates",
+          "severity": "medium",
+          "why": "Magnesium-rich supplements reduce absorption of oral bisphosphonates.",
+          "gapHours": 2,
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "ods-mg"
+          ]
+        },
+        {
+          "type": "noInteraction",
+          "with": "calcium",
+          "why": "Calcium and magnesium are often said to compete for absorption, but the human studies found no effect. Adding 1,000 mg/day calcium did not change magnesium absorption (50% vs 55%) or balance in 26 girls. A stable-isotope study found the same at 1,800 vs 800 mg calcium. In the other direction, 826 mg/day magnesium did not change calcium absorption in adult men.",
+          "strength": "moderate",
+          "evidenceNote": "The studies are small and mostly in adolescents. An Australian reference review notes one exception: very high calcium (about 2,600 mg/day) combined with high sodium increased magnesium loss.",
+          "sources": [
+            "andon1996",
+            "abrams1997",
+            "spencer1994",
+            "nrv-au-mg"
+          ]
+        }
+      ],
+      "notes": [
+        "Very high zinc doses (142 mg/day) interfere with magnesium absorption. This is stored as a dose warning on zinc, not as a timing rule."
+      ],
+      "doseUnit": "mg",
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 375,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 250,
+            "note": "Applies to magnesium salts in supplements, water and fortified foods, not magnesium naturally in food.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 420,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 350,
+            "note": "Applies to magnesium from supplements and medicines only, not food or water.",
+            "sources": [
+              "nasem-ul-elements"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "A cofactor for over 300 enzyme systems, including those for energy production, protein synthesis, muscle and nerve function, and blood sugar and blood pressure control. About half of the body's magnesium is in bone.",
+        "sources": [
+          "ods-mg"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Magnesium contributes to a reduction of tiredness and fatigue"
+          },
+          {
+            "text": "Magnesium contributes to electrolyte balance"
+          },
+          {
+            "text": "Magnesium contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Magnesium contributes to normal functioning of the nervous system"
+          },
+          {
+            "text": "Magnesium contributes to normal muscle function"
+          },
+          {
+            "text": "Magnesium contributes to normal protein synthesis"
+          },
+          {
+            "text": "Magnesium contributes to normal psychological function"
+          },
+          {
+            "text": "Magnesium contributes to the maintenance of normal bones"
+          },
+          {
+            "text": "Magnesium contributes to the maintenance of normal teeth"
+          },
+          {
+            "text": "Magnesium has a role in the process of cell division"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "zinc",
+      "name": "Zinc",
+      "aliases": [
+        "Zn",
+        "zinc picolinate",
+        "zinc citrate",
+        "zinc gluconate"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "gluconate",
+      "defaultForm": "gluconate",
+      "forms": [
+        {
+          "id": "gluconate",
+          "name": "Zinc gluconate",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. About 61% fractional absorption from a 10 mg dose without food.",
+          "sources": [
+            "wegmuller2014",
+            "ods-zinc"
+          ],
+          "listed": true
+        },
+        {
+          "id": "citrate",
+          "name": "Zinc citrate",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "Absorption essentially identical to gluconate (61.3% vs 60.9%) in a stable-isotope crossover study.",
+          "sources": [
+            "wegmuller2014",
+            "ods-zinc"
+          ],
+          "listed": true
+        },
+        {
+          "id": "picolinate",
+          "name": "Zinc picolinate",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "The 'best absorbed' reputation comes mainly from one 1987 study of 15 people. It measured hair, urine and red-cell zinc after 4 weeks, not absorption directly. There is no modern isotope comparison with citrate or gluconate.",
+          "sources": [
+            "barrie1987"
+          ],
+          "listed": true
+        },
+        {
+          "id": "oxide",
+          "name": "Zinc oxide",
+          "absorption": "lower",
+          "evidence": "moderate",
+          "note": "Insoluble in water. About 50% absorption versus 61% for citrate and gluconate, and some people absorbed little or none. Likely depends on stomach acid.",
+          "sources": [
+            "wegmuller2014",
+            "ods-zinc"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "Absorption data above were measured without food. Phytates in grains, legumes and nuts bind zinc and reduce its absorption, so if zinc is taken with a meal, a lower-phytate meal is better.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "wegmuller2014",
+          "ods-zinc"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "mealAdvice": {
+          "text": "If zinc is taken with this meal, lighter on whole grains, beans and nuts is better: their phytates bind zinc.",
+          "sources": [
+            "ods-zinc"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "avoid",
+          "with": "iron",
+          "appliesWhen": {
+            "otherDoseMgAtLeast": 25
+          },
+          "why": "Taking 25 mg or more of supplemental iron at the same time reduces zinc absorption and plasma zinc. Iron in fortified foods does not have this effect.",
+          "strength": "strong",
+          "sources": [
+            "ods-zinc"
+          ]
+        },
+        {
+          "type": "preferApart",
+          "with": "calcium",
+          "why": "Evidence conflicts on whether calcium reduces zinc absorption. In one study 600 mg calcium carbonate taken with a meal halved zinc absorption from that meal, and adding about 8 mg zinc to the calcium supplement cancelled the effect. Another study gave 500 mg calcium carbonate with a meal and found no change in zinc retention.",
+          "strength": "weak",
+          "evidenceNote": "Two small human studies with opposite results. Kept as a soft preference rather than a hard rule.",
+          "sources": [
+            "wood1997",
+            "dawsonhughes1986"
+          ]
+        },
+        {
+          "type": "doseWarning",
+          "with": "copper",
+          "appliesWhen": {
+            "selfDailyMgAtLeast": 50,
+            "durationNote": "weeks or longer"
+          },
+          "why": "Zinc doses of 50 mg/day or more over weeks inhibit copper absorption and can cause copper deficiency.",
+          "strength": "strong",
+          "sources": [
+            "ods-zinc"
+          ]
+        },
+        {
+          "type": "doseWarning",
+          "with": "magnesium",
+          "appliesWhen": {
+            "selfDailyMgAtLeast": 142
+          },
+          "why": "Very high zinc doses interfere with magnesium absorption and balance. Far above normal supplement doses.",
+          "strength": "moderate",
+          "sources": [
+            "ods-zinc"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "quinolone-tetracycline",
+          "severity": "medium",
+          "why": "Zinc and these antibiotics bind each other in the gut, reducing absorption of both.",
+          "action": "Take the antibiotic at least 2 hours before, or 4 to 6 hours after, zinc.",
+          "gapHours": {
+            "medicationBeforeMin": 2,
+            "medicationAfterMin": 4
+          },
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "ods-zinc"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "penicillamine",
+          "severity": "medium",
+          "why": "Zinc reduces the absorption and action of penicillamine.",
+          "gapHours": 1,
+          "gapBasis": "convention",
+          "strength": "moderate",
+          "sources": [
+            "ods-zinc"
+          ]
+        }
+      ],
+      "doseUnit": "mg",
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 10,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 25,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 11,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 40,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "nasem-ul-elements"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "Needed for the activity of about 100 enzymes. Involved in immune function, protein and DNA synthesis, wound healing, cell division, and taste and smell.",
+        "sources": [
+          "ods-zinc"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Zinc contributes to normal acid-base metabolism"
+          },
+          {
+            "text": "Zinc contributes to normal carbohydrate metabolism"
+          },
+          {
+            "text": "Zinc contributes to normal cognitive function"
+          },
+          {
+            "text": "Zinc contributes to normal DNA synthesis"
+          },
+          {
+            "text": "Zinc contributes to normal fertility and reproduction"
+          },
+          {
+            "text": "Zinc contributes to normal macronutrient metabolism"
+          },
+          {
+            "text": "Zinc contributes to normal metabolism of fatty acids"
+          },
+          {
+            "text": "Zinc contributes to normal metabolism of vitamin A"
+          },
+          {
+            "text": "Zinc contributes to normal protein synthesis"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal bones"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal hair"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal nails"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal skin"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal testosterone levels in the blood"
+          },
+          {
+            "text": "Zinc contributes to the maintenance of normal vision"
+          },
+          {
+            "text": "Zinc contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Zinc contributes to the protection of cells from oxidative stress"
+          },
+          {
+            "text": "Zinc has a role in the process of cell division"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "iron",
+      "name": "Iron",
+      "aliases": [
+        "Fe",
+        "ferrous sulfate",
+        "ferrous bisglycinate",
+        "iron glycinate"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "ferrous-sulfate",
+      "defaultForm": "ferrous-bisglycinate",
+      "forms": [
+        {
+          "id": "ferrous-sulfate",
+          "name": "Ferrous sulfate",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "tolerability": "Roughly doubles the odds of GI side effects versus placebo (OR 2.32 across 20 RCTs).",
+          "note": "Reference form and the standard used in most trials. Cheap and effective, but GI side effects are the main reason people stop taking it.",
+          "sources": [
+            "tolkien2015"
+          ],
+          "listed": true
+        },
+        {
+          "id": "ferrous-bisglycinate",
+          "name": "Ferrous bisglycinate",
+          "absorption": "higher",
+          "evidence": "moderate",
+          "tolerability": "About 64% fewer reported GI adverse events than other iron forms in a meta-analysis (pregnant women).",
+          "note": "In a meta-analysis of 17 RCTs it raised hemoglobin more than other iron forms in pregnant women. No significant difference was seen in children. Evidence in non-pregnant adults is limited, so the 'higher' rating applies to the populations studied.",
+          "sources": [
+            "fischer2023"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "avoid",
+        "withFoodWhy": "Common meal components inhibit non-heme iron absorption. About 165 mg calcium in a meal (from milk or cheese) cut absorption by 50 to 60%. Coffee and tea taken with food also cut it substantially. If iron causes stomach upset, the fallback is a light, low-calcium meal without coffee or tea.",
+        "withFoodEvidence": "strong",
+        "withFoodSources": [
+          "hallberg1991",
+          "cook1991",
+          "morck1983"
+        ],
+        "preferredSlots": [
+          "morning"
+        ],
+        "preferredSlotsWhy": "Morning single doses were used in the dosing studies. Splitting the dose twice daily raised hepcidin, the hormone that blocks iron absorption.",
+        "frequency": "daily",
+        "frequencyOptions": [
+          {
+            "id": "alternate-day",
+            "label": "Every other day",
+            "why": "Each iron dose raises hepcidin for about a day, which reduces absorption of the next dose. Alternate-day dosing gave higher fractional absorption in iron-depleted and anaemic women. At equal total doses over 3 months it did not give higher ferritin, but it caused fewer GI side effects and less iron deficiency at 6 months.",
+            "strength": "moderate",
+            "sources": [
+              "stoffel2017",
+              "stoffel2020",
+              "vonsiebenthal2023"
+            ]
+          }
+        ],
+        "nearbyMealAdvice": {
+          "withinHours": 2,
+          "text": "Keep this meal low in dairy and other calcium-rich food. About 165 mg calcium, given as milk or cheese, cut iron absorption from a meal by 50 to 60%.",
+          "sources": [
+            "hallberg1991"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "avoid",
+          "with": "calcium",
+          "why": "Calcium inhibits both non-heme and heme iron absorption, in a dose-related way, when taken in the same meal. Calcium carbonate taken without food did not inhibit ferrous sulfate in one study, but calcium citrate and phosphate did, and all calcium forms inhibited iron when taken with food.",
+          "gapHours": 2,
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "hallberg1991",
+            "cook1991"
+          ]
+        },
+        {
+          "type": "avoid",
+          "with": "coffee",
+          "why": "Coffee polyphenols bind non-heme iron in the gut so it cannot be absorbed. A cup with a meal cut iron absorption by 39%, and stronger coffee cut it more. Adding milk does not reduce the effect.",
+          "gapHours": {
+            "contextBeforeMin": 1,
+            "contextAfterMin": 2
+          },
+          "gapBasis": "convention",
+          "gapNote": "Before-gap is measured: coffee 1 h before a meal had no effect. After-gap of 2 h is a conservative choice, because coffee 1 h after still inhibited as much as with the meal, while for tea a 1 h gap reduced the inhibition.",
+          "strength": "strong",
+          "sources": [
+            "morck1983",
+            "hurrell1999"
+          ]
+        },
+        {
+          "type": "avoid",
+          "with": "tea",
+          "why": "Tea polyphenols are stronger iron blockers than coffee: 64% reduction with a meal in one study and 79 to 94% in another. Adding milk does not reduce the effect.",
+          "gapHours": {
+            "contextBeforeMin": 1,
+            "contextAfterMin": 2
+          },
+          "gapBasis": "convention",
+          "gapNote": "Before-gap is measured: coffee 1 h before a meal had no effect. After-gap of 2 h is a conservative choice, because coffee 1 h after still inhibited as much as with the meal, while for tea a 1 h gap reduced the inhibition.",
+          "strength": "strong",
+          "sources": [
+            "morck1983",
+            "hurrell1999",
+            "ahmad2017"
+          ]
+        },
+        {
+          "type": "avoid",
+          "with": "herbal-tea",
+          "why": "Herbal teas and cocoa also inhibit iron, in proportion to their polyphenol content: peppermint 84%, cocoa 71%, chamomile 47%.",
+          "gapHours": {
+            "contextBeforeMin": 1,
+            "contextAfterMin": 2
+          },
+          "gapBasis": "convention",
+          "gapNote": "Same windows as coffee and tea; no herbal-specific timing study.",
+          "strength": "moderate",
+          "sources": [
+            "hurrell1999"
+          ]
+        },
+        {
+          "type": "pair",
+          "with": "vitamin-c",
+          "sameSlotRequired": true,
+          "why": "Ascorbic acid enhances non-heme iron absorption, but only when present at the same time. A large vitamin C dose at breakfast did not affect iron absorbed at lunch or dinner. The effect measured across a whole diet is much smaller than in single-meal tests.",
+          "strength": "moderate",
+          "sources": [
+            "hallberg1989",
+            "cook1977",
+            "cook2001"
+          ]
+        }
+      ],
+      "notes": [
+        "Zinc and iron interaction is stored on zinc (symmetric avoid rule).",
+        "Medication interactions (e.g. levothyroxine, PPIs) not yet added; pending a primary source for each.",
+        "Decaf coffee is not exempt by assumption: the iron effect comes from polyphenols, not caffeine. No study in the dataset tested decaf directly, so the app should treat decaf as coffee until one is sourced."
+      ],
+      "doseUnit": "mg",
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 14,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "safe-level",
+            "amount": 40,
+            "note": "EFSA could not identify a clear threshold for harm, so it set a safe level of intake instead of an upper limit.",
+            "sources": [
+              "efsa-iron-2024"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 18,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 45,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "nasem-ul-elements"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "Part of haemoglobin, the protein in red blood cells that carries oxygen from the lungs to the tissues, and of myoglobin, which stores oxygen in muscle. Also needed for growth, brain development and making some hormones.",
+        "sources": [
+          "ods-iron"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Iron contributes to normal cognitive function"
+          },
+          {
+            "text": "Iron contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Iron contributes to normal formation of red blood cells and haemoglobin"
+          },
+          {
+            "text": "Iron contributes to normal oxygen transport in the body"
+          },
+          {
+            "text": "Iron contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Iron contributes to the reduction of tiredness and fatigue"
+          },
+          {
+            "text": "Iron has a role in the process of cell division"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "calcium",
+      "name": "Calcium",
+      "doseUnit": "mg",
+      "aliases": [
+        "Ca",
+        "calcium carbonate",
+        "calcium citrate"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "carbonate",
+      "defaultForm": "carbonate",
+      "forms": [
+        {
+          "id": "carbonate",
+          "name": "Calcium carbonate",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. 40% calcium by weight, so fewer or smaller tablets. Needs stomach acid to dissolve, so take it with a meal. More likely than citrate to cause gas, bloating and constipation.",
+          "sources": [
+            "ods-calcium"
+          ],
+          "timingOverride": {
+            "withFood": "required",
+            "withFoodWhy": "Carbonate needs stomach acid to dissolve. Taking it with a meal keeps absorption up, especially for people with low stomach acid."
+          },
+          "listed": true
+        },
+        {
+          "id": "citrate",
+          "name": "Calcium citrate",
+          "absorption": "higher",
+          "evidence": "moderate",
+          "note": "Only 21% calcium by weight, so larger or more tablets. Does not depend on stomach acid and can be taken without food. A meta-analysis found it absorbed about 22 to 27% better than carbonate, both fasting and with meals. A later crossover study found the two equivalent, so the size of the advantage is uncertain.",
+          "sources": [
+            "ods-calcium",
+            "sakhaee1999",
+            "heaney2001"
+          ],
+          "timingOverride": {
+            "withFood": "preferred",
+            "withFoodWhy": "Works without food, but all calcium supplements are absorbed somewhat better with a meal."
+          },
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "All calcium supplements are absorbed better when taken with food.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "ods-calcium"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "maxPerDose": {
+          "amount": 500,
+          "why": "Absorption is highest at 500 mg or less per dose: about 36% of a 300 mg dose versus 28% of a 1,000 mg dose.",
+          "sources": [
+            "ods-calcium"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "levothyroxine",
+          "severity": "medium",
+          "why": "Calcium supplements reduce levothyroxine absorption; the levothyroxine label warning names calcium carbonate specifically.",
+          "action": "Keep levothyroxine at least 4 hours away from calcium.",
+          "gapHours": 4,
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "ods-calcium"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "quinolones",
+          "severity": "medium",
+          "why": "Calcium binds quinolone antibiotics in the gut.",
+          "action": "Take the antibiotic at least 2 hours before or 2 hours after calcium.",
+          "gapHours": 2,
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "ods-calcium"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "dolutegravir",
+          "severity": "medium",
+          "why": "Calcium reduces dolutegravir absorption.",
+          "action": "Take dolutegravir 2 hours before or 6 hours after calcium.",
+          "gapHours": {
+            "medicationBeforeMin": 2,
+            "medicationAfterMin": 6
+          },
+          "gapBasis": "convention",
+          "strength": "strong",
+          "sources": [
+            "ods-calcium"
+          ]
+        }
+      ],
+      "notes": [
+        "The calcium–iron separation is stored on iron (symmetric avoid rule).",
+        "Coffee's small effect on calcium balance is stored on the coffee context."
+      ],
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 800,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 2500,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 1300,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 2500,
+            "note": "2,500 mg for ages 19–50 and 2,000 mg from age 51, food plus supplements combined.",
+            "sources": [
+              "ods-calcium"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "The most abundant mineral in the body. About 99% is in bones and teeth, where it forms their structure. The rest is used for muscle contraction, blood vessel function, nerve signalling and hormone release.",
+        "sources": [
+          "ods-calcium"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Calcium contributes to normal blood clotting"
+          },
+          {
+            "text": "Calcium contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Calcium contributes to normal muscle function"
+          },
+          {
+            "text": "Calcium contributes to normal neurotransmission"
+          },
+          {
+            "text": "Calcium contributes to the normal function of digestive enzymes"
+          },
+          {
+            "text": "Calcium has a role in the process of cell division and specialisation"
+          },
+          {
+            "text": "Calcium is needed for the maintenance of normal bones"
+          },
+          {
+            "text": "Calcium is needed for the maintenance of normal teeth"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "vitamin-c",
+      "name": "Vitamin C",
+      "doseUnit": "mg",
+      "aliases": [
+        "ascorbic acid",
+        "Ester-C",
+        "ascorbate"
+      ],
+      "category": "vitamin",
+      "fatSoluble": false,
+      "referenceForm": "ascorbic-acid",
+      "defaultForm": "ascorbic-acid",
+      "forms": [
+        {
+          "id": "ascorbic-acid",
+          "name": "Ascorbic acid",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form. As bioavailable as the vitamin C in orange juice or broccoli. The cheapest form.",
+          "sources": [
+            "ods-vitc"
+          ],
+          "listed": true
+        },
+        {
+          "id": "ester-c",
+          "name": "Ester-C (calcium ascorbate with metabolites)",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "Same plasma levels and urinary excretion as plain ascorbic acid in one comparison. Another study found higher levels in white blood cells after 24 hours. No clear advantage at a higher price.",
+          "sources": [
+            "ods-vitc"
+          ],
+          "listed": false
+        },
+        {
+          "id": "with-bioflavonoids",
+          "name": "Ascorbic acid with bioflavonoids",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "No difference from plain ascorbic acid in plasma levels or urinary excretion.",
+          "sources": [
+            "ods-vitc"
+          ],
+          "listed": false
+        },
+        {
+          "id": "liposomal",
+          "name": "Liposomal vitamin C",
+          "absorption": "higher",
+          "evidence": "weak",
+          "note": "Nine of ten small studies reported higher blood levels than plain vitamin C (1.2 to 5.4 times higher peak). The formulations, doses and methods differed widely, and almost none measured uptake into cells or any health effect.",
+          "sources": [
+            "carr2025"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "No sourced effect of food on vitamin C absorption.",
+        "withFoodEvidence": "weak",
+        "withFoodSources": [
+          "ods-vitc"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "maxPerDose": {
+          "amount": 1000,
+          "why": "Absorption is about 70 to 90% at 30–180 mg/day and falls below 50% above 1 g. Splitting a large dose keeps each part on the efficient end of that curve. The 1,000 mg split point is a convention.",
+          "sources": [
+            "ods-vitc"
+          ]
+        }
+      },
+      "rules": [],
+      "notes": [
+        "The iron pairing is stored on iron."
+      ],
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 80,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "none",
+            "note": "No upper limit set (insufficient data). High doses can still cause diarrhoea, nausea and cramps.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 90,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 2000,
+            "note": "Applies to food plus supplements combined. High doses can cause diarrhoea, nausea and cramps.",
+            "sources": [
+              "ods-vitc"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "Needed to make collagen, L-carnitine and some neurotransmitters, and acts as an antioxidant. Improves absorption of non-haem iron from plant foods and supports immune function.",
+        "sources": [
+          "ods-vitc"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Vitamin C contributes to maintain the normal function of the immune system during and after intense physical exercise",
+            "condition": "Only for products giving at least 200 mg a day on top of the recommended daily intake."
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of blood vessels"
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of bones"
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of cartilage"
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of gums"
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of skin"
+          },
+          {
+            "text": "Vitamin C contributes to normal collagen formation for the normal function of teeth"
+          },
+          {
+            "text": "Vitamin C contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Vitamin C contributes to normal functioning of the nervous system"
+          },
+          {
+            "text": "Vitamin C contributes to normal psychological function"
+          },
+          {
+            "text": "Vitamin C contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Vitamin C contributes to the protection of cells from oxidative stress"
+          },
+          {
+            "text": "Vitamin C contributes to the reduction of tiredness and fatigue"
+          },
+          {
+            "text": "Vitamin C contributes to the regeneration of the reduced form of vitamin E"
+          },
+          {
+            "text": "Vitamin C increases iron absorption"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "copper",
+      "name": "Copper",
+      "doseUnit": "mg",
+      "aliases": [
+        "Cu",
+        "copper gluconate",
+        "copper bisglycinate"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "gluconate",
+      "defaultForm": "gluconate",
+      "forms": [
+        {
+          "id": "gluconate",
+          "name": "Copper gluconate",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "weak",
+          "note": "Reference form by convention only. No studies have compared the bioavailability of copper forms.",
+          "sources": [
+            "ods-copper"
+          ],
+          "listed": true
+        },
+        {
+          "id": "sulfate",
+          "name": "Cupric sulfate",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "No comparative data.",
+          "sources": [
+            "ods-copper"
+          ],
+          "listed": false
+        },
+        {
+          "id": "chelate",
+          "name": "Copper amino acid chelate (e.g. bisglycinate)",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "No comparative data, despite marketing as better absorbed.",
+          "sources": [
+            "ods-copper"
+          ],
+          "listed": true
+        },
+        {
+          "id": "oxide",
+          "name": "Cupric oxide",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "No comparative human data.",
+          "sources": [
+            "ods-copper"
+          ],
+          "listed": false
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "No sourced food effect. Absorption falls as total copper intake rises: about 75% at 0.4 mg/day versus 12% at 7.5 mg/day.",
+        "withFoodEvidence": "weak",
+        "withFoodSources": [
+          "ods-copper"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily"
+      },
+      "rules": [],
+      "notes": [
+        "High-dose zinc lowers copper absorption, but the sources give no timing guidance, so this is stored as a dose warning on zinc rather than a timing rule.",
+        "No clinically relevant medication interactions are known."
+      ],
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 1,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 5,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 0.9,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 10,
+            "note": "Applies to food plus supplements combined.",
+            "sources": [
+              "nasem-ul-elements"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "A cofactor for enzymes involved in energy production, iron metabolism, connective tissue formation, pigmentation and making neurotransmitters.",
+        "sources": [
+          "ods-copper"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Copper contributes to maintenance of normal connective tissues"
+          },
+          {
+            "text": "Copper contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Copper contributes to normal functioning of the nervous system"
+          },
+          {
+            "text": "Copper contributes to normal hair pigmentation"
+          },
+          {
+            "text": "Copper contributes to normal iron transport in the body"
+          },
+          {
+            "text": "Copper contributes to normal skin pigmentation"
+          },
+          {
+            "text": "Copper contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Copper contributes to the protection of cells from oxidative stress"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "omega-3",
+      "name": "Omega-3",
+      "doseUnit": "mg EPA+DHA",
+      "aliases": [
+        "fish oil",
+        "EPA",
+        "DHA",
+        "krill oil",
+        "algal oil"
+      ],
+      "category": "fatty acid",
+      "fatSoluble": true,
+      "referenceForm": "triglyceride",
+      "defaultForm": "triglyceride",
+      "forms": [
+        {
+          "id": "triglyceride",
+          "name": "Natural triglyceride fish oil",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "note": "Reference form, as it occurs in fish.",
+          "sources": [
+            "ods-omega3",
+            "dyerberg2010"
+          ],
+          "listed": true
+        },
+        {
+          "id": "rtg",
+          "name": "Re-esterified triglyceride (rTG) concentrate",
+          "absorption": "higher",
+          "evidence": "moderate",
+          "note": "About 124% of natural fish oil's bioavailability in a 2-week comparison.",
+          "sources": [
+            "dyerberg2010",
+            "ods-omega3"
+          ],
+          "listed": false
+        },
+        {
+          "id": "ethyl-ester",
+          "name": "Ethyl ester (EE) concentrate",
+          "absorption": "lower",
+          "evidence": "strong",
+          "note": "About 73% of natural fish oil in the same comparison. Strongly meal-dependent: absorption roughly tripled with a high-fat meal compared with a low-fat one.",
+          "sources": [
+            "dyerberg2010",
+            "lawson1988",
+            "ods-omega3"
+          ],
+          "timingOverride": {
+            "withFood": "required",
+            "withFoodWhy": "Ethyl esters need fat-digesting enzymes released by a fatty meal; absorption roughly tripled with 44 g versus 8 g of fat.",
+            "mealAdvice": {
+              "key": "big-fat-meal",
+              "text": "Take ethyl-ester fish oil with your largest, fattiest meal of the day: its absorption depends far more on dietary fat than other forms.",
+              "sources": [
+                "lawson1988"
+              ]
+            }
+          },
+          "listed": true
+        },
+        {
+          "id": "phospholipid",
+          "name": "Krill oil (phospholipid)",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "note": "Some studies found higher bioavailability than fish oil, others did not.",
+          "sources": [
+            "ods-omega3"
+          ],
+          "listed": true
+        },
+        {
+          "id": "algal",
+          "name": "Algal oil (vegan DHA/EPA)",
+          "absorption": "similar",
+          "evidence": "weak",
+          "note": "Usually in triglyceride form. In a small study DHA from algal oil was as bioavailable as from cooked salmon.",
+          "sources": [
+            "ods-omega3"
+          ],
+          "listed": true
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "A fat, absorbed with the fat in a meal. Triglyceride EPA absorption rose from 69% to 90% with a high-fat meal.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "lawson1988"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "mealAdvice": {
+          "key": "fat-meal",
+          "text": "Make this a meal with some fat in it.",
+          "sources": [
+            "lawson1988"
+          ]
+        }
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "warfarin-vka",
+          "severity": "low",
+          "why": "Fish oil may prolong clotting time with warfarin, though most research finds 3–6 g/day does not significantly change anticoagulation.",
+          "action": "Mention it to the prescriber; INR may be checked periodically.",
+          "strength": "moderate",
+          "sources": [
+            "ods-omega3"
+          ]
+        }
+      ],
+      "reference": {
+        "eu": {
+          "dailyValue": null,
+          "upperLimit": {
+            "kind": "guidance",
+            "amount": 5000,
+            "note": "No formal upper limit. EFSA considers up to about 5 g/day EPA+DHA from supplements safe.",
+            "sources": [
+              "ods-omega3"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": null,
+          "upperLimit": {
+            "kind": "guidance",
+            "amount": 5000,
+            "note": "No formal upper limit. FDA considers supplements providing up to 5 g/day EPA+DHA safe.",
+            "sources": [
+              "ods-omega3"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "EPA and DHA are built into cell membranes throughout the body; DHA is concentrated in the retina, brain and sperm. They are also used to make signalling molecules (eicosanoids) that act on the heart, blood vessels, lungs and immune system.",
+        "sources": [
+          "ods-omega3"
+        ]
+      },
+      "euClaims": {
+        "sources": [
+          "eu-432"
+        ],
+        "claims": [
+          {
+            "text": "EPA and DHA contribute to the normal function of the heart",
+            "condition": "Effect with 250 mg EPA and DHA a day."
+          },
+          {
+            "text": "DHA contributes to maintenance of normal brain function",
+            "condition": "Effect with 250 mg DHA a day."
+          },
+          {
+            "text": "DHA contributes to the maintenance of normal vision",
+            "condition": "Effect with 250 mg DHA a day."
+          },
+          {
+            "text": "DHA and EPA contribute to the maintenance of normal blood pressure",
+            "condition": "Effect with 3 g EPA and DHA a day. Supplements must say not to exceed 5 g a day combined."
+          },
+          {
+            "text": "DHA and EPA contribute to the maintenance of normal blood triglyceride levels",
+            "condition": "Effect with 2 g EPA and DHA a day. Supplements must say not to exceed 5 g a day combined."
+          },
+          {
+            "text": "DHA contributes to the maintenance of normal blood triglyceride levels",
+            "condition": "Effect with 2 g DHA a day, together with EPA. Supplements must say not to exceed 5 g a day combined."
+          }
+        ]
+      }
+    },
+    {
+      "id": "vitamin-b12",
+      "name": "Vitamin B12",
+      "doseUnit": "µg",
+      "aliases": [
+        "B12",
+        "cobalamin",
+        "cyanocobalamin",
+        "methylcobalamin"
+      ],
+      "category": "vitamin",
+      "fatSoluble": false,
+      "referenceForm": "cyanocobalamin",
+      "defaultForm": "cyanocobalamin",
+      "forms": [
+        {
+          "id": "cyanocobalamin",
+          "name": "Cyanocobalamin",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "moderate",
+          "note": "Reference form and the most common in supplements. Stable and well studied.",
+          "sources": [
+            "ods-b12"
+          ],
+          "listed": true
+        },
+        {
+          "id": "methylcobalamin",
+          "name": "Methylcobalamin",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "Often marketed as more bioavailable or 'active', but there is no evidence that absorption differs by form.",
+          "sources": [
+            "ods-b12"
+          ],
+          "listed": true
+        },
+        {
+          "id": "adenosylcobalamin",
+          "name": "Adenosylcobalamin",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "No evidence that absorption differs by form.",
+          "sources": [
+            "ods-b12"
+          ],
+          "listed": false
+        },
+        {
+          "id": "hydroxocobalamin",
+          "name": "Hydroxocobalamin",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "note": "No evidence that absorption differs by form.",
+          "sources": [
+            "ods-b12"
+          ],
+          "listed": false
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "Supplement B12 is already in free form, so unlike food B12 it does not need stomach acid to be released.",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "ods-b12"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "absorptionNote": "Active absorption saturates at about 1–2 µg per dose. Only about 2% of a 500 µg dose and 1.3% of a 1,000 µg dose is absorbed, which is why high-dose tablets exist."
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "acid-suppressants",
+          "severity": "low",
+          "why": "These reduce stomach acid, which impairs release of B12 from food and can lead to deficiency over time. Supplement B12 is already free and does not need that step.",
+          "action": "Ask the prescriber whether B12 status should be checked.",
+          "strength": "moderate",
+          "sources": [
+            "ods-b12"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "metformin",
+          "severity": "low",
+          "why": "Metformin may reduce B12 absorption and significantly lower blood B12.",
+          "action": "Ask the prescriber whether B12 status should be checked.",
+          "strength": "moderate",
+          "sources": [
+            "ods-b12"
+          ]
+        }
+      ],
+      "notes": [
+        "No upper limit has been set; B12 has low toxicity potential."
+      ],
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 2.5,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "none",
+            "note": "No upper limit set; no defined adverse effects.",
+            "sources": [
+              "efsa-ul-overview"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 2.4,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "none",
+            "note": "No upper limit set because of low potential for toxicity.",
+            "sources": [
+              "ods-b12"
+            ]
+          }
+        }
+      },
+      "roleInBody": {
+        "text": "Needed for red blood cell formation, nerve function and DNA synthesis. Works as a cofactor for two enzymes, one of which recycles homocysteine into methionine.",
+        "sources": [
+          "ods-b12"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Vitamin B12 contributes to normal energy-yielding metabolism"
+          },
+          {
+            "text": "Vitamin B12 contributes to normal functioning of the nervous system"
+          },
+          {
+            "text": "Vitamin B12 contributes to normal homocysteine metabolism"
+          },
+          {
+            "text": "Vitamin B12 contributes to normal psychological function"
+          },
+          {
+            "text": "Vitamin B12 contributes to normal red blood cell formation"
+          },
+          {
+            "text": "Vitamin B12 contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Vitamin B12 contributes to the reduction of tiredness and fatigue"
+          },
+          {
+            "text": "Vitamin B12 has a role in the process of cell division"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "selenium",
+      "name": "Selenium",
+      "doseUnit": "µg",
+      "aliases": [
+        "Se",
+        "selenomethionine",
+        "selenium yeast",
+        "sodium selenite"
+      ],
+      "category": "mineral",
+      "fatSoluble": false,
+      "referenceForm": "selenomethionine",
+      "defaultForm": "selenomethionine",
+      "forms": [
+        {
+          "id": "selenomethionine",
+          "name": "L-selenomethionine",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "moderate",
+          "listed": true,
+          "note": "Reference form and the most common. The body uses it like the amino acid methionine and builds it into proteins throughout the body, so it raises blood selenium more than inorganic forms. That stored selenium is not necessarily more useful: the selenium-dependent antioxidant enzyme rose equally with selenate.",
+          "sources": [
+            "ods-selenium",
+            "thomson1993"
+          ]
+        },
+        {
+          "id": "yeast",
+          "name": "Selenium yeast (selenium-enriched yeast)",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "listed": true,
+          "note": "Mostly selenomethionine, so it behaves like the reference form.",
+          "sources": [
+            "ods-selenium",
+            "thomson1993"
+          ]
+        },
+        {
+          "id": "selenite",
+          "name": "Sodium selenite",
+          "absorption": "similar",
+          "evidence": "weak",
+          "listed": true,
+          "note": "Inorganic form. Absorption is high for all common forms, up to about 90%. It is not built into body proteins the way selenomethionine is, so blood selenium rises less for the same dose. No head-to-head enzyme comparison with selenomethionine was verified.",
+          "sources": [
+            "ods-selenium"
+          ]
+        },
+        {
+          "id": "selenate",
+          "name": "Sodium selenate",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "listed": false,
+          "note": "Raised blood selenium less than selenomethionine over 32 weeks, but raised the selenium-dependent enzyme just as much.",
+          "sources": [
+            "thomson1993",
+            "ods-selenium"
+          ]
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "No sourced effect of food on absorption. Absorption is high, up to about 90%, for all common supplement forms.",
+        "withFoodEvidence": "weak",
+        "withFoodSources": [
+          "ods-selenium"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily"
+      },
+      "rules": [],
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 55,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 255,
+            "note": "Set in 2023, lowered from 300 µg. Based on hair loss as the earliest sign of excess. Adults who take supplements or eat Brazil nuts regularly are the ones likely to exceed it.",
+            "sources": [
+              "efsa-se-2023"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 55,
+            "sources": [
+              "ods-selenium"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 400,
+            "note": "Applies to food plus supplements combined. Early signs of excess are garlic breath and a metallic taste; hair loss and brittle nails are the most common.",
+            "sources": [
+              "ods-selenium"
+            ]
+          }
+        }
+      },
+      "notes": [
+        "One Brazil nut can contain more selenium than a daily supplement; food sources will be added later.",
+        "Cisplatin lowers selenium levels, but the NIH fact sheet calls the clinical significance unknown, so no medication flag is stored."
+      ],
+      "roleInBody": {
+        "text": "Built into about 25 selenoproteins, which work in thyroid hormone metabolism, DNA synthesis, reproduction and protection from oxidative damage.",
+        "sources": [
+          "ods-selenium"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Selenium contributes to normal spermatogenesis"
+          },
+          {
+            "text": "Selenium contributes to the maintenance of normal hair"
+          },
+          {
+            "text": "Selenium contributes to the maintenance of normal nails"
+          },
+          {
+            "text": "Selenium contributes to the normal function of the immune system"
+          },
+          {
+            "text": "Selenium contributes to the normal thyroid function"
+          },
+          {
+            "text": "Selenium contributes to the protection of cells from oxidative stress"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "b-complex",
+      "name": "B-complex",
+      "doseUnit": null,
+      "doseMode": "components",
+      "aliases": [
+        "vitamin B complex",
+        "B-50",
+        "B-100",
+        "B vitamins"
+      ],
+      "category": "vitamin",
+      "fatSoluble": false,
+      "referenceForm": "standard",
+      "defaultForm": "standard",
+      "forms": [
+        {
+          "id": "standard",
+          "name": "Standard (folic acid, cyanocobalamin, pyridoxine)",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "moderate",
+          "listed": true,
+          "note": "Reference form. Folic acid is nearly 100% absorbed without food and about 85% with food.",
+          "sources": [
+            "ods-folate",
+            "ods-b12"
+          ],
+          "shortName": "standard"
+        },
+        {
+          "id": "methylated",
+          "name": "Methylated or 'active' (methylfolate, methylcobalamin, P5P)",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "listed": true,
+          "note": "Methylfolate is absorbed as well as or better than folic acid. Methylcobalamin is no better absorbed than cyanocobalamin, and the forms of B6 don't differ substantially. Methylfolate may suit some people with the MTHFR gene variant, but the evidence is inconclusive.",
+          "sources": [
+            "ods-folate",
+            "ods-b12",
+            "ods-b6"
+          ],
+          "shortName": "methylated"
+        }
+      ],
+      "components": [
+        {
+          "id": "b1",
+          "name": "Thiamin (B1)",
+          "unit": "mg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 1.1,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 1.2,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "roleInBody": {
+            "text": "Helps turn food into energy and is needed for the growth and function of cells.",
+            "sources": [
+              "ods-thiamin"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Thiamine contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Thiamine contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Thiamine contributes to normal psychological function"
+              },
+              {
+                "text": "Thiamine contributes to the normal function of the heart"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b2",
+          "name": "Riboflavin (B2)",
+          "unit": "mg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 1.4,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 1.3,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "roleInBody": {
+            "text": "Part of two coenzymes needed for energy production, cell growth and the metabolism of fats and drugs.",
+            "sources": [
+              "ods-riboflavin"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Riboflavin contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Riboflavin contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Riboflavin contributes to the maintenance of normal mucous membranes"
+              },
+              {
+                "text": "Riboflavin contributes to the maintenance of normal red blood cells"
+              },
+              {
+                "text": "Riboflavin contributes to the maintenance of normal skin"
+              },
+              {
+                "text": "Riboflavin contributes to the maintenance of normal vision"
+              },
+              {
+                "text": "Riboflavin contributes to the normal metabolism of iron"
+              },
+              {
+                "text": "Riboflavin contributes to the protection of cells from oxidative stress"
+              },
+              {
+                "text": "Riboflavin contributes to the reduction of tiredness and fatigue"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b3",
+          "name": "Niacin (B3)",
+          "unit": "mg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 16,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 16,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "doseField": true,
+          "defaultForm": "nicotinamide",
+          "forms": [
+            {
+              "id": "nicotinamide",
+              "name": "Nicotinamide (niacinamide)",
+              "note": "The usual form in B-complex products. Does not cause flushing.",
+              "reference": {
+                "eu": {
+                  "upperLimit": {
+                    "kind": "UL",
+                    "amount": 900,
+                    "note": "The EU limit for nicotinamide is 900 mg/day; the limit for nicotinic acid is only 10 mg/day.",
+                    "sources": [
+                      "harmonized-ul-2019"
+                    ]
+                  }
+                },
+                "us": {
+                  "upperLimit": {
+                    "kind": "UL",
+                    "amount": 35,
+                    "note": "Applies to supplemental niacin in both forms, not niacin in food.",
+                    "sources": [
+                      "ods-niacin"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "id": "nicotinic-acid",
+              "name": "Nicotinic acid (niacin)",
+              "note": "Causes skin flushing, typically from 30–50 mg. Taking it with food reduces the flushing.",
+              "reference": {
+                "eu": {
+                  "upperLimit": {
+                    "kind": "UL",
+                    "amount": 10,
+                    "note": "The EU limit for nicotinic acid is based on flushing.",
+                    "sources": [
+                      "harmonized-ul-2019"
+                    ]
+                  }
+                },
+                "us": {
+                  "upperLimit": {
+                    "kind": "UL",
+                    "amount": 35,
+                    "note": "Applies to supplemental niacin in both forms, not niacin in food. Based on flushing.",
+                    "sources": [
+                      "ods-niacin"
+                    ]
+                  }
+                }
+              },
+              "timingOverride": {
+                "withFood": "preferred",
+                "withFoodWhy": "Your B-complex uses nicotinic acid, which causes skin flushing; taking it with food reduces the flushing.",
+                "withFoodSources": [
+                  "ods-niacin"
+                ]
+              }
+            }
+          ],
+          "roleInBody": {
+            "text": "Converted to NAD, a coenzyme used by more than 400 enzymes, more than any other vitamin-derived coenzyme.",
+            "sources": [
+              "ods-niacin"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Niacin contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Niacin contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Niacin contributes to normal psychological function"
+              },
+              {
+                "text": "Niacin contributes to the maintenance of normal mucous membranes"
+              },
+              {
+                "text": "Niacin contributes to the maintenance of normal skin"
+              },
+              {
+                "text": "Niacin contributes to the reduction of tiredness and fatigue"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b5",
+          "name": "Pantothenic acid (B5)",
+          "unit": "mg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 6,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 5,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "roleInBody": {
+            "text": "Used to make coenzyme A, which is needed to make and break down fatty acids.",
+            "sources": [
+              "ods-pantothenic"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Pantothenic acid contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Pantothenic acid contributes to normal synthesis and metabolism of steroid hormones, vitamin D and some neurotransmitters"
+              },
+              {
+                "text": "Pantothenic acid contributes to the reduction of tiredness and fatigue"
+              },
+              {
+                "text": "Pantothenic acid contributes to normal mental performance"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b6",
+          "name": "Vitamin B6",
+          "unit": "mg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 1.4,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "UL",
+                "amount": 12,
+                "note": "Lowered in 2023. Based on nerve damage (peripheral neuropathy) as the critical effect of long-term excess.",
+                "sources": [
+                  "efsa-b6-2023"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 1.7,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "UL",
+                "amount": 100,
+                "note": "Severe nerve damage has been reported at 1–6 g/day taken for 12–40 months.",
+                "sources": [
+                  "ods-b6"
+                ]
+              }
+            }
+          },
+          "doseField": true,
+          "roleInBody": {
+            "text": "A coenzyme in more than 100 enzyme reactions, mostly in protein metabolism.",
+            "sources": [
+              "ods-b6"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Vitamin B6 contributes to normal cysteine synthesis"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal homocysteine metabolism"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal protein and glycogen metabolism"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal psychological function"
+              },
+              {
+                "text": "Vitamin B6 contributes to normal red blood cell formation"
+              },
+              {
+                "text": "Vitamin B6 contributes to the normal function of the immune system"
+              },
+              {
+                "text": "Vitamin B6 contributes to the reduction of tiredness and fatigue"
+              },
+              {
+                "text": "Vitamin B6 contributes to the regulation of hormonal activity"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b7",
+          "name": "Biotin (B7)",
+          "unit": "µg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 50,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 30,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "roleInBody": {
+            "text": "A coenzyme for enzymes that break down fats, carbohydrates and amino acids.",
+            "sources": [
+              "ods-biotin"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Biotin contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Biotin contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Biotin contributes to normal macronutrient metabolism"
+              },
+              {
+                "text": "Biotin contributes to normal psychological function"
+              },
+              {
+                "text": "Biotin contributes to the maintenance of normal hair"
+              },
+              {
+                "text": "Biotin contributes to the maintenance of normal mucous membranes"
+              },
+              {
+                "text": "Biotin contributes to the maintenance of normal skin"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b9",
+          "name": "Folate (B9)",
+          "unit": "µg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 200,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "UL",
+                "amount": 1000,
+                "note": "Applies to folic acid and methylfolate combined, not food folate. The concern is worsening nerve symptoms of an unnoticed B12 deficiency.",
+                "sources": [
+                  "efsa-folate-2023"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 400,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "UL",
+                "amount": 1000,
+                "note": "Applies to folic acid and methylfolate from supplements and fortified foods, not food folate.",
+                "sources": [
+                  "ods-folate"
+                ]
+              }
+            }
+          },
+          "doseField": true,
+          "usDvFactor": 1.7,
+          "roleInBody": {
+            "text": "Needed to make DNA and RNA and to metabolise amino acids, so it is essential for cell division.",
+            "sources": [
+              "ods-folate"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Folate contributes to maternal tissue growth during pregnancy"
+              },
+              {
+                "text": "Folate contributes to normal amino acid synthesis"
+              },
+              {
+                "text": "Folate contributes to normal blood formation"
+              },
+              {
+                "text": "Folate contributes to normal homocysteine metabolism"
+              },
+              {
+                "text": "Folate contributes to normal psychological function"
+              },
+              {
+                "text": "Folate contributes to the normal function of the immune system"
+              },
+              {
+                "text": "Folate contributes to the reduction of tiredness and fatigue"
+              },
+              {
+                "text": "Folate has a role in the process of cell division"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        },
+        {
+          "id": "b12",
+          "name": "Vitamin B12",
+          "unit": "µg",
+          "reference": {
+            "eu": {
+              "dailyValue": {
+                "amount": 2.5,
+                "sources": [
+                  "eu-1169"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "efsa-ul-overview"
+                ]
+              }
+            },
+            "us": {
+              "dailyValue": {
+                "amount": 2.4,
+                "sources": [
+                  "fda-dv"
+                ]
+              },
+              "upperLimit": {
+                "kind": "none",
+                "note": "No upper limit set.",
+                "sources": [
+                  "nasem-ul-vitamins"
+                ]
+              }
+            }
+          },
+          "roleInBody": {
+            "text": "Needed for red blood cell formation, nerve function and DNA synthesis.",
+            "sources": [
+              "ods-b12"
+            ]
+          },
+          "euClaims": {
+            "claims": [
+              {
+                "text": "Vitamin B12 contributes to normal energy-yielding metabolism"
+              },
+              {
+                "text": "Vitamin B12 contributes to normal functioning of the nervous system"
+              },
+              {
+                "text": "Vitamin B12 contributes to normal homocysteine metabolism"
+              },
+              {
+                "text": "Vitamin B12 contributes to normal psychological function"
+              },
+              {
+                "text": "Vitamin B12 contributes to normal red blood cell formation"
+              },
+              {
+                "text": "Vitamin B12 contributes to the normal function of the immune system"
+              },
+              {
+                "text": "Vitamin B12 contributes to the reduction of tiredness and fatigue"
+              },
+              {
+                "text": "Vitamin B12 has a role in the process of cell division"
+              }
+            ],
+            "sources": [
+              "eu-432"
+            ]
+          }
+        }
+      ],
+      "timing": {
+        "withFood": "neutral",
+        "withFoodWhy": "No sourced food effect for B vitamins in general. Folic acid is absorbed slightly better without food (about 100% vs 85%).",
+        "withFoodEvidence": "moderate",
+        "withFoodSources": [
+          "ods-folate"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily"
+      },
+      "infoNotes": [
+        {
+          "text": "Biotin can disturb some lab tests. The FDA has reports of biotin causing falsely low troponin results, a test used to diagnose heart attacks. Mention biotin when you have blood tests.",
+          "sources": [
+            "fda-biotin"
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "type": "medication",
+          "with": "methotrexate",
+          "severity": "medium",
+          "why": "Folate may interfere with methotrexate's effect in cancer treatment. In low-dose use for arthritis or psoriasis it may reduce side effects.",
+          "action": "Ask the prescriber before taking folate.",
+          "strength": "moderate",
+          "sources": [
+            "ods-folate"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "antiepileptics",
+          "severity": "medium",
+          "why": "These medicines lower folate and B6 levels. Folate, and B6 at about 200 mg/day, may lower blood levels of some of them.",
+          "action": "Ask the prescriber before taking B vitamins.",
+          "strength": "moderate",
+          "sources": [
+            "ods-folate",
+            "ods-b6"
+          ]
+        }
+      ],
+      "notes": [
+        "Doses can only be entered for niacin, B6 and folate: the B vitamins with upper limits.",
+        "B12 has no upper limit, so B12 from a B-complex plus a separate B12 needs no warning."
+      ],
+      "roleInBody": {
+        "text": "The eight B vitamins work mainly as coenzymes: they help turn food into energy, make DNA and red blood cells, and keep the nervous system working. Each one has its own role, listed below.",
+        "sources": [
+          "ods-thiamin",
+          "ods-folate",
+          "ods-b12"
+        ]
+      },
+      "euClaims": {
+        "claims": [],
+        "byComponent": true,
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "vitamin-e",
+      "name": "Vitamin E",
+      "doseUnit": "mg",
+      "aliases": [
+        "alpha-tocopherol",
+        "d-alpha-tocopherol",
+        "tocopherol",
+        "tocopheryl acetate"
+      ],
+      "category": "vitamin",
+      "fatSoluble": true,
+      "referenceForm": "natural",
+      "defaultForm": "natural",
+      "forms": [
+        {
+          "id": "natural",
+          "name": "Natural (d-alpha-tocopherol, RRR)",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "strong",
+          "listed": true,
+          "note": "Reference form. The liver selects this form and puts it back into the blood, so the body keeps it longer. Labels write it as d-alpha-tocopherol or d-alpha-tocopheryl acetate/succinate.",
+          "iuToMg": 0.67,
+          "sources": [
+            "burton1998",
+            "ods-vite-consumer"
+          ],
+          "shortName": "natural"
+        },
+        {
+          "id": "synthetic",
+          "name": "Synthetic (dl-alpha-tocopherol, all-rac)",
+          "absorption": "lower",
+          "evidence": "strong",
+          "listed": true,
+          "note": "A mix of eight mirror-image forms, of which the body retains mainly one. With natural and synthetic taken together, blood and tissues held about twice as much natural form. Officially 2 mg synthetic counts as 1 mg vitamin E. Labels write it as dl-alpha-tocopherol (the 'l' gives it away).",
+          "iuToMg": 0.45,
+          "sources": [
+            "burton1998",
+            "ods-vite-consumer"
+          ],
+          "shortName": "synthetic"
+        },
+        {
+          "id": "mixed",
+          "name": "Mixed tocopherols",
+          "absorption": "unclear",
+          "evidence": "weak",
+          "listed": true,
+          "note": "Contains gamma, delta and beta tocopherols besides alpha. Limits and daily values count only the alpha-tocopherol on the label, so enter that amount as the dose.",
+          "sources": [
+            "efsa-vite-2024"
+          ],
+          "shortName": "mixed tocopherols"
+        }
+      ],
+      "timing": {
+        "withFood": "required",
+        "withFoodWhy": "Vitamin E needs fat to be absorbed. A 400 IU capsule taken with a fat-free breakfast was barely absorbed, and blood levels rose in only 2 of 5 people. Toast with butter (17.5 g fat) gave much higher absorption than low-fat cereal or water.",
+        "withFoodEvidence": "strong",
+        "withFoodSources": [
+          "leonard2004",
+          "jeanes2004"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "mealAdvice": {
+          "key": "fat-meal",
+          "text": "Make this a meal with some fat in it. A vitamin E capsule with a fat-free meal is barely absorbed.",
+          "sources": [
+            "leonard2004",
+            "jeanes2004"
+          ]
+        }
+      },
+      "reference": {
+        "eu": {
+          "dailyValue": {
+            "amount": 12,
+            "sources": [
+              "eu-1169"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 300,
+            "note": "Applies to alpha-tocopherol from all sources, natural or synthetic. Based on reduced blood clotting and bleeding risk. Does not apply to people on anticoagulant or antiplatelet medicines, for whom it is too high.",
+            "sources": [
+              "efsa-vite-2024"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": {
+            "amount": 15,
+            "sources": [
+              "fda-dv"
+            ]
+          },
+          "upperLimit": {
+            "kind": "UL",
+            "amount": 1000,
+            "note": "Applies to supplements of either form: about 1,500 IU natural or 1,100 IU synthetic. High doses may raise bleeding risk, including bleeding in the brain.",
+            "sources": [
+              "ods-vite-consumer"
+            ]
+          }
+        }
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "warfarin-vka",
+          "severity": "high",
+          "why": "Vitamin E can increase the risk of bleeding with anticoagulants such as warfarin.",
+          "action": "Ask the prescriber before taking vitamin E.",
+          "strength": "moderate",
+          "sources": [
+            "ods-vite-consumer",
+            "efsa-vite-2024"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "antiplatelets",
+          "severity": "medium",
+          "why": "Vitamin E can increase the risk of bleeding with antiplatelet medicines.",
+          "action": "Ask the prescriber before taking vitamin E.",
+          "strength": "moderate",
+          "sources": [
+            "ods-vite-consumer",
+            "efsa-vite-2024"
+          ]
+        }
+      ],
+      "notes": [
+        "Doses are in mg of alpha-tocopherol. IU converts differently by form: 1 IU natural = 0.67 mg, 1 IU synthetic = 0.45 mg.",
+        "A vitamin E–vitamin K interaction is often claimed for high doses; not verified, so no rule."
+      ],
+      "roleInBody": {
+        "text": "An antioxidant in cell membranes that stops chain reactions of free radicals in fats. Also involved in immune function and cell signalling.",
+        "sources": [
+          "ods-vite-consumer"
+        ]
+      },
+      "euClaims": {
+        "claims": [
+          {
+            "text": "Vitamin E contributes to the protection of cells from oxidative stress"
+          }
+        ],
+        "sources": [
+          "eu-432"
+        ]
+      }
+    },
+    {
+      "id": "coq10",
+      "name": "Coenzyme Q10",
+      "doseUnit": "mg",
+      "aliases": [
+        "CoQ10",
+        "Q10",
+        "ubiquinone",
+        "ubiquinol"
+      ],
+      "category": "other",
+      "fatSoluble": true,
+      "referenceForm": "ubiquinone-oil",
+      "defaultForm": "ubiquinone-oil",
+      "forms": [
+        {
+          "id": "ubiquinone-oil",
+          "name": "Ubiquinone, softgel in oil",
+          "shortName": "ubiquinone",
+          "absorption": "similar",
+          "isReference": true,
+          "evidence": "moderate",
+          "listed": true,
+          "note": "Reference form. CoQ10 is a waxy crystal that the gut cannot absorb as crystals. Softgels dissolve it in oil first, so it can join the fat micelles of a meal.",
+          "sources": [
+            "mantle2020"
+          ]
+        },
+        {
+          "id": "ubiquinol",
+          "name": "Ubiquinol, softgel",
+          "shortName": "ubiquinol",
+          "absorption": "similar",
+          "evidence": "moderate",
+          "listed": true,
+          "note": "The reduced form. The body converts ubiquinone and ubiquinol back and forth, in the gut wall and in the blood. Studies comparing the two disagree; how the product is made seems to matter more than which form it contains.",
+          "sources": [
+            "mantle2020"
+          ]
+        },
+        {
+          "id": "ubiquinone-dry",
+          "name": "Ubiquinone, tablet or powder capsule",
+          "shortName": "dry form",
+          "absorption": "lower",
+          "evidence": "weak",
+          "listed": true,
+          "note": "Products that do not disperse the crystals first were absorbed about 75% less in the reviewed studies. The review's authors include a CoQ10 manufacturer.",
+          "sources": [
+            "mantle2020"
+          ]
+        }
+      ],
+      "timing": {
+        "withFood": "preferred",
+        "withFoodWhy": "CoQ10 is fat-soluble and is absorbed the same way as dietary fat, in micelles formed with bile. Bile is released when you eat, so a meal with some fat helps. Direct trials of fed versus fasting intake are few.",
+        "withFoodEvidence": "weak",
+        "withFoodSources": [
+          "mantle2020"
+        ],
+        "preferredSlots": [],
+        "frequency": "daily",
+        "mealAdvice": {
+          "key": "fat-meal",
+          "text": "Make this a meal with some fat in it.",
+          "sources": [
+            "mantle2020"
+          ]
+        }
+      },
+      "reference": {
+        "eu": {
+          "dailyValue": null,
+          "upperLimit": {
+            "kind": "none",
+            "amount": null,
+            "note": "No EU upper limit and no legal maximum for supplements. Germany allows up to 100 mg/day in supplements. Mild stomach upset was reported at up to 300 mg/day; higher doses have not been studied well.",
+            "sources": [
+              "bfr-coq10"
+            ]
+          }
+        },
+        "us": {
+          "dailyValue": null,
+          "upperLimit": {
+            "kind": "guidance",
+            "amount": 1200,
+            "note": "Not an official limit. A risk assessment by supplement-industry authors found no harm at up to 1,200 mg/day in trials (observed safe level).",
+            "sources": [
+              "hathcock2006"
+            ]
+          }
+        }
+      },
+      "rules": [
+        {
+          "type": "medication",
+          "with": "warfarin-vka",
+          "severity": "high",
+          "why": "CoQ10 may interact with warfarin. In Germany, people on anticoagulants are advised to get medical advice before taking more than 100 mg/day.",
+          "action": "Ask the prescriber before taking CoQ10.",
+          "strength": "weak",
+          "sources": [
+            "nccih-coq10",
+            "bfr-coq10"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "insulin",
+          "severity": "medium",
+          "why": "CoQ10 may interact with insulin.",
+          "action": "Ask the prescriber before taking CoQ10.",
+          "strength": "weak",
+          "sources": [
+            "nccih-coq10"
+          ]
+        },
+        {
+          "type": "medication",
+          "with": "cancer-treatment",
+          "severity": "medium",
+          "why": "CoQ10 may not be compatible with some types of cancer treatment.",
+          "action": "Ask the treating team before taking CoQ10.",
+          "strength": "weak",
+          "sources": [
+            "nccih-coq10"
+          ]
+        }
+      ],
+      "notes": [
+        "The body makes its own CoQ10; food provides about 3–6 mg/day. No deficiency needing treatment is known in healthy people.",
+        "Absorption per dose is limited, so in studies two smaller doses gave higher blood levels than one large dose. Stax does not split CoQ10 automatically."
+      ],
+      "infoNotes": [],
+      "roleInBody": {
+        "text": "Made by the body and present in most cells, with the highest levels in the heart, liver, kidneys and pancreas. In the mitochondria it carries electrons in the chain that produces cellular energy (ATP); its reduced form, ubiquinol, also acts as an antioxidant.",
+        "sources": [
+          "nccih-coq10",
+          "mantle2020"
+        ]
+      },
+      "euClaims": {
+        "claims": [],
+        "none": "No authorised claims. CoQ10 is not on the EU list of permitted health claims; EFSA assessed six proposed claims in 2010 (energy, blood pressure, antioxidant, cognition, cholesterol, endurance).",
+        "sources": [
+          "eu-register",
+          "efsa-coq10-2010"
+        ]
+      }
+    }
+  ],
+  "sources": {
+    "tripkovic2012": {
+      "title": "Comparison of vitamin D2 and vitamin D3 supplementation in raising serum 25-hydroxyvitamin D status: a systematic review and meta-analysis",
+      "authors": "Tripkovic L, Lambert H, Hart K, et al.",
+      "journal": "Am J Clin Nutr",
+      "year": 2012,
+      "type": "meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22552031/"
+    },
+    "tripkovic2017": {
+      "title": "Daily supplementation with 15 µg vitamin D2 compared with vitamin D3 to increase wintertime 25-hydroxyvitamin D status in healthy South Asian and white European women: a 12-wk randomized, placebo-controlled food-fortification trial",
+      "authors": "Tripkovic L, Wilson LR, Hart K, et al.",
+      "journal": "Am J Clin Nutr",
+      "year": 2017,
+      "type": "RCT",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28679555/"
+    },
+    "lanhamnew2017": {
+      "title": "Vitamin D2 vs. vitamin D3: They are not one and the same",
+      "authors": "Lanham-New SA, Wilson LR, Tripkovic L",
+      "journal": "Nutrition Bulletin",
+      "year": 2017,
+      "type": "review",
+      "url": "https://doi.org/10.1111/nbu.12293"
+    },
+    "dawsonhughes2015": {
+      "title": "Dietary fat increases vitamin D-3 absorption",
+      "authors": "Dawson-Hughes B, Harris SS, Lichtenstein AH, et al.",
+      "journal": "J Acad Nutr Diet",
+      "year": 2015,
+      "type": "RCT",
+      "url": "https://doi.org/10.1016/j.jand.2014.09.014",
+      "fundingNote": "Supported by Pfizer Consumer Healthcare"
+    },
+    "dawsonhughes2013": {
+      "title": "Meal conditions affect the absorption of supplemental vitamin D3 but not the plasma 25-hydroxyvitamin D response to supplementation",
+      "authors": "Dawson-Hughes B, Harris SS, Palermo NJ, et al.",
+      "journal": "J Bone Miner Res",
+      "year": 2013,
+      "type": "RCT",
+      "url": "https://doi.org/10.1002/jbmr.1896"
+    },
+    "schurgers2007": {
+      "title": "Vitamin K-containing dietary supplements: comparison of synthetic vitamin K1 and natto-derived menaquinone-7",
+      "authors": "Schurgers LJ, Teunissen KJ, Hamulyák K, et al.",
+      "journal": "Blood",
+      "year": 2007,
+      "type": "controlled human study",
+      "url": "https://doi.org/10.1182/blood-2006-08-040709",
+      "fundingNote": "Partly funded by an MK-7 supplier (Natural ASA)"
+    },
+    "sato2012": {
+      "title": "Comparison of menaquinone-4 and menaquinone-7 bioavailability in healthy women",
+      "authors": "Sato T, Schurgers LJ, Uenishi K",
+      "journal": "Nutr J",
+      "year": 2012,
+      "type": "controlled human study",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3502319/"
+    },
+    "ods-vitk": {
+      "title": "Vitamin K: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+    },
+    "ods-mg": {
+      "title": "Magnesium: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+    },
+    "firoz2001": {
+      "title": "Bioavailability of US commercial magnesium preparations",
+      "authors": "Firoz M, Graber M",
+      "journal": "Magnes Res",
+      "year": 2001,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11794633/"
+    },
+    "walker2003": {
+      "title": "Mg citrate found more bioavailable than other Mg preparations in a randomised, double-blind study",
+      "authors": "Walker AF, Marakis G, Christie S, Byng M",
+      "journal": "Magnes Res",
+      "year": 2003,
+      "type": "RCT",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/14596323/"
+    },
+    "lindberg1990": {
+      "title": "Magnesium bioavailability from magnesium citrate and magnesium oxide",
+      "authors": "Lindberg JS, Zobitz MM, Poindexter JR, Pak CY",
+      "journal": "J Am Coll Nutr",
+      "year": 1990,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/2407766/"
+    },
+    "pajuelo2024": {
+      "title": "Comparative Clinical Study on Magnesium Absorption and Side Effects After Oral Intake of Microencapsulated Magnesium (MAGSHAPE Microcapsules) Versus Other Magnesium Sources",
+      "authors": "Pajuelo D, Meissner JM, Negra T, Connolly A, Mullor JL",
+      "journal": "Nutrients",
+      "year": 2024,
+      "type": "RCT (crossover)",
+      "url": "https://doi.org/10.3390/nu16244367",
+      "fundingNote": "Study of a commercial microencapsulated ingredient; oxide, citrate and bisglycinate were comparators"
+    },
+    "ods-zinc": {
+      "title": "Zinc: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+    },
+    "wegmuller2014": {
+      "title": "Zinc absorption by young adults from supplemental zinc citrate is comparable with that from zinc gluconate and higher than from zinc oxide",
+      "authors": "Wegmüller R, Tay F, Zeder C, Brnic M, Hurrell RF",
+      "journal": "J Nutr",
+      "year": 2014,
+      "type": "RCT (crossover, stable isotope)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/24259556/",
+      "fundingNote": "Sponsored by a zinc citrate supplier (Jungbunzlauer)"
+    },
+    "barrie1987": {
+      "title": "Comparative absorption of zinc picolinate, zinc citrate and zinc gluconate in humans",
+      "authors": "Barrie SA, Wright JV, Pizzorno JE, Kutter E, Barron PC",
+      "journal": "Agents Actions",
+      "year": 1987,
+      "type": "controlled human study (n=15)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3630857/"
+    },
+    "tolkien2015": {
+      "title": "Ferrous sulfate supplementation causes significant gastrointestinal side-effects in adults: a systematic review and meta-analysis",
+      "authors": "Tolkien Z, Stecher L, Mander AP, Pereira DI, Powell JJ",
+      "journal": "PLoS One",
+      "year": 2015,
+      "type": "meta-analysis",
+      "url": "https://doi.org/10.1371/journal.pone.0117383"
+    },
+    "fischer2023": {
+      "title": "The effects of oral ferrous bisglycinate supplementation on hemoglobin and ferritin concentrations in adults and children: a systematic review and meta-analysis of randomized controlled trials",
+      "authors": "Fischer JAJ, Cherian AM, Bone JN, Karakochuk CD",
+      "journal": "Nutr Rev",
+      "year": 2023,
+      "type": "meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36728680/"
+    },
+    "hallberg1991": {
+      "title": "Calcium: effect of different amounts on nonheme- and heme-iron absorption in humans",
+      "authors": "Hallberg L, Brune M, Erlandsson M, Sandberg AS, Rossander-Hultén L",
+      "journal": "Am J Clin Nutr",
+      "year": 1991,
+      "type": "controlled human study",
+      "url": "https://doi.org/10.1093/ajcn/53.1.112"
+    },
+    "cook1991": {
+      "title": "Calcium supplementation: effect on iron absorption",
+      "authors": "Cook JD, Dassenko SA, Whittaker P",
+      "journal": "Am J Clin Nutr",
+      "year": 1991,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1984334/"
+    },
+    "morck1983": {
+      "title": "Inhibition of food iron absorption by coffee",
+      "authors": "Morck TA, Lynch SR, Cook JD",
+      "journal": "Am J Clin Nutr",
+      "year": 1983,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/6402915/"
+    },
+    "ahmad2017": {
+      "title": "A 1-h time interval between a meal containing iron and consumption of tea attenuates the inhibitory effects on iron absorption: a controlled trial in a cohort of healthy UK women using a stable iron isotope",
+      "authors": "Ahmad Fuzi SF, et al.",
+      "journal": "Am J Clin Nutr",
+      "year": 2017,
+      "type": "controlled human study",
+      "url": "https://ueaeprints.uea.ac.uk/id/eprint/65903/1/Accepted_manuscript.pdf"
+    },
+    "hallberg1989": {
+      "title": "The role of vitamin C in iron absorption",
+      "authors": "Hallberg L, Brune M, Rossander L",
+      "journal": "Int J Vitam Nutr Res Suppl",
+      "year": 1989,
+      "type": "review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/2507689/"
+    },
+    "cook1977": {
+      "title": "Vitamin C, the common cold, and iron absorption",
+      "authors": "Cook JD, Monsen ER",
+      "journal": "Am J Clin Nutr",
+      "year": 1977,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/835510/"
+    },
+    "cook2001": {
+      "title": "Effect of ascorbic acid intake on nonheme-iron absorption from a complete diet",
+      "authors": "Cook JD, Reddy MB",
+      "journal": "Am J Clin Nutr",
+      "year": 2001,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11124756/"
+    },
+    "stoffel2017": {
+      "title": "Iron absorption from oral iron supplements given on consecutive versus alternate days and as single morning doses versus twice-daily split dosing in iron-depleted women: two open-label, randomised controlled trials",
+      "authors": "Stoffel NU, Cercamondi CI, Brittenham G, et al.",
+      "journal": "Lancet Haematol",
+      "year": 2017,
+      "type": "RCT",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/?term=Stoffel+Lancet+Haematol+2017+alternate+days+iron",
+      "urlNote": "Search link; replace with the direct PubMed ID once verified"
+    },
+    "stoffel2020": {
+      "title": "Iron absorption from supplements is greater with alternate day than with consecutive day dosing in iron-deficient anemic women",
+      "authors": "Stoffel NU, Zeder C, Brittenham GM, Moretti D, Zimmermann MB",
+      "journal": "Haematologica",
+      "year": 2020,
+      "type": "controlled human study",
+      "url": "https://doi.org/10.3324/haematol.2019.220830"
+    },
+    "vonsiebenthal2023": {
+      "title": "Alternate day versus consecutive day oral iron supplementation in iron-depleted women: a randomized double-blind placebo-controlled study",
+      "authors": "von Siebenthal HK, Gessler S, Vallelian F, et al.",
+      "journal": "eClinicalMedicine",
+      "year": 2023,
+      "type": "RCT",
+      "url": "https://doi.org/10.1016/j.eclinm.2023.102286"
+    },
+    "bargerlux1995": {
+      "title": "Caffeine and the calcium economy revisited",
+      "authors": "Barger-Lux MJ, Heaney RP",
+      "journal": "Osteoporos Int",
+      "year": 1995,
+      "type": "analysis of 560 calcium balance studies",
+      "url": "https://doi.org/10.1007/BF01623310"
+    },
+    "massey1993": {
+      "title": "Caffeine, urinary calcium, calcium metabolism and bone",
+      "authors": "Massey LK, Whiting SJ",
+      "journal": "J Nutr",
+      "year": 1993,
+      "type": "review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8360789/"
+    },
+    "hurrell1999": {
+      "title": "Inhibition of non-haem iron absorption in man by polyphenolic-containing beverages",
+      "authors": "Hurrell RF, Reddy M, Cook JD",
+      "journal": "Br J Nutr",
+      "year": 1999,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/10999016/"
+    },
+    "ods-calcium": {
+      "title": "Calcium: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
+    },
+    "ods-vitc": {
+      "title": "Vitamin C: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+    },
+    "ods-copper": {
+      "title": "Copper: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Copper-HealthProfessional/"
+    },
+    "ods-omega3": {
+      "title": "Omega-3 Fatty Acids: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+    },
+    "ods-b12": {
+      "title": "Vitamin B12: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
+    },
+    "sakhaee1999": {
+      "title": "Meta-analysis of calcium bioavailability: a comparison of calcium citrate with calcium carbonate",
+      "authors": "Sakhaee K, Bhuket T, Adams-Huet B, Rao DS",
+      "journal": "Am J Ther",
+      "year": 1999,
+      "type": "meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11329115/"
+    },
+    "heaney2001": {
+      "title": "Absorbability and cost effectiveness in calcium supplementation",
+      "authors": "Heaney RP, et al.",
+      "journal": "J Am Coll Nutr",
+      "year": 2001,
+      "type": "RCT (crossover)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11444420/"
+    },
+    "carr2025": {
+      "title": "Do Liposomal Vitamin C Formulations Have Improved Bioavailability? A Scoping Review Identifying Future Research Directions",
+      "authors": "Carr AC",
+      "journal": "Basic Clin Pharmacol Toxicol",
+      "year": 2025,
+      "type": "scoping review",
+      "url": "https://doi.org/10.1111/bcpt.70067"
+    },
+    "dyerberg2010": {
+      "title": "Bioavailability of marine n-3 fatty acid formulations",
+      "authors": "Dyerberg J, et al.",
+      "journal": "Prostaglandins Leukot Essent Fatty Acids",
+      "year": 2010,
+      "type": "RCT",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/20638827/"
+    },
+    "lawson1988": {
+      "title": "Absorption of eicosapentaenoic acid and docosahexaenoic acid from fish oil triacylglycerols or fish oil ethyl esters co-ingested with a high-fat meal",
+      "authors": "Lawson LD, Hughes BG",
+      "journal": "Biochem Biophys Res Commun",
+      "year": 1988,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/2847723/"
+    },
+    "eu-1169": {
+      "title": "Regulation (EU) No 1169/2011, Annex XIII Part A: reference intakes of vitamins and minerals (adults)",
+      "authors": "European Parliament and Council",
+      "year": 2011,
+      "type": "regulation",
+      "url": "https://www.legislation.gov.uk/eur/2011/1169/annex/XIII",
+      "urlNote": "UK-retained copy of the EU text; values are identical to the EU original"
+    },
+    "efsa-ul-overview": {
+      "title": "Overview on Tolerable Upper Intake Levels as derived by the SCF and the EFSA NDA Panel (version 11)",
+      "authors": "EFSA",
+      "year": 2025,
+      "type": "authoritative overview",
+      "url": "https://www.efsa.europa.eu/sites/default/files/2024-05/ul-summary-report.pdf"
+    },
+    "efsa-iron-2024": {
+      "title": "Scientific opinion on the tolerable upper intake level for iron",
+      "authors": "EFSA NDA Panel",
+      "year": 2024,
+      "type": "scientific opinion",
+      "url": "https://efsa.europa.eu/en/efsajournal/pub/8819"
+    },
+    "fda-dv": {
+      "title": "Daily Value on the Nutrition and Supplement Facts Labels",
+      "authors": "US Food and Drug Administration",
+      "type": "regulation summary",
+      "url": "https://www.fda.gov/food/nutrition-facts-label/daily-value-nutrition-and-supplement-facts-labels"
+    },
+    "nasem-ul-elements": {
+      "title": "Dietary Reference Intakes: Tolerable Upper Intake Levels, Elements",
+      "authors": "Food and Nutrition Board, National Academies",
+      "type": "reference table",
+      "url": "https://www.ncbi.nlm.nih.gov/sites/books/NBK278991/table/diet-treatment-obes.table18die/?report=objectonly"
+    },
+    "ods-vitd": {
+      "title": "Vitamin D: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+    },
+    "wood1997": {
+      "title": "High dietary calcium intakes reduce zinc absorption and balance in humans",
+      "authors": "Wood RJ, Zheng JJ",
+      "journal": "Am J Clin Nutr",
+      "year": 1997,
+      "type": "controlled human study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9174476/"
+    },
+    "dawsonhughes1986": {
+      "title": "Effects of calcium carbonate and hydroxyapatite on zinc and iron retention in postmenopausal women",
+      "authors": "Dawson-Hughes B, Seligson FH, Hughes VA",
+      "journal": "Am J Clin Nutr",
+      "year": 1986,
+      "type": "RCT (crossover)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3014855/"
+    },
+    "andon1996": {
+      "title": "Magnesium balance in adolescent females consuming a low- or high-calcium diet",
+      "authors": "Andon MB, Ilich JZ, Tzagournis MA, Matkovic V",
+      "journal": "Am J Clin Nutr",
+      "year": 1996,
+      "type": "RCT",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8644692/",
+      "urlNote": "PubMed ID from citation 63(6):950-3; page not opened directly"
+    },
+    "abrams1997": {
+      "title": "Magnesium kinetics in adolescent girls determined using stable isotopes: effects of high and low calcium intake",
+      "authors": "Abrams SA, et al.",
+      "journal": "Am J Physiol",
+      "year": 1997,
+      "type": "controlled human study (crossover, n=5)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9277559/"
+    },
+    "spencer1994": {
+      "title": "Effect of magnesium on the intestinal absorption of calcium in man",
+      "authors": "Spencer H, et al.",
+      "journal": "J Am Coll Nutr",
+      "year": 1994,
+      "type": "metabolic balance study (n=5)",
+      "url": "https://doi.org/10.1080/07315724.1994.10718439",
+      "urlNote": "DOI from citation 13(5):485-92; page not opened directly"
+    },
+    "nrv-au-mg": {
+      "title": "Nutrient Reference Values for Australia and New Zealand: Magnesium",
+      "authors": "NHMRC (Australia)",
+      "type": "authoritative overview",
+      "url": "https://www.eatforhealth.gov.au/nutrient-reference-values/nutrients/magnesium"
+    },
+    "ods-selenium": {
+      "title": "Selenium: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
+    },
+    "efsa-se-2023": {
+      "title": "Scientific opinion on the tolerable upper intake level for selenium",
+      "authors": "EFSA NDA Panel",
+      "journal": "EFSA Journal",
+      "year": 2023,
+      "type": "scientific opinion",
+      "url": "https://doi.org/10.2903/j.efsa.2023.7704"
+    },
+    "thomson1993": {
+      "title": "Long-term supplementation with selenate and selenomethionine: selenium and glutathione peroxidase in blood components of New Zealand women",
+      "authors": "Thomson CD, Robinson MF, Butler JA, Whanger PD",
+      "journal": "Br J Nutr",
+      "year": 1993,
+      "type": "RCT (double-blind, 32 weeks)",
+      "url": "https://doi.org/10.1079/BJN19930057"
+    },
+    "martin1989": {
+      "title": "Ascorbic acid-selenite interactions in humans studied with an oral dose of 74SeO3(2-)",
+      "authors": "Martin RF, Young VR, Blumberg J, Janghorbani M",
+      "journal": "Am J Clin Nutr",
+      "year": 1989,
+      "type": "controlled human study (stable isotope)",
+      "url": "https://doi.org/10.1093/ajcn/49.5.862"
+    },
+    "ods-b6": {
+      "title": "Vitamin B6: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
+    },
+    "ods-niacin": {
+      "title": "Niacin: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Niacin-HealthProfessional/"
+    },
+    "ods-folate": {
+      "title": "Folate: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+    },
+    "efsa-b6-2023": {
+      "title": "Scientific opinion on the tolerable upper intake level for vitamin B6",
+      "authors": "EFSA NDA Panel",
+      "journal": "EFSA Journal",
+      "year": 2023,
+      "type": "scientific opinion",
+      "url": "https://doi.org/10.2903/j.efsa.2023.8006"
+    },
+    "efsa-folate-2023": {
+      "title": "Scientific opinion on the tolerable upper intake level for folate",
+      "authors": "EFSA NDA Panel",
+      "journal": "EFSA Journal",
+      "year": 2023,
+      "type": "scientific opinion",
+      "url": "https://doi.org/10.2903/j.efsa.2023.8353"
+    },
+    "harmonized-ul-2019": {
+      "title": "Perspective: Proposed Harmonized Nutrient Reference Values for Populations (Table 5: EFSA and IOM upper limits)",
+      "authors": "Allen LH, et al.",
+      "journal": "Adv Nutr",
+      "year": 2019,
+      "type": "review",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7231601/table/tbl5"
+    },
+    "nasem-ul-vitamins": {
+      "title": "Dietary Reference Intakes: Tolerable Upper Intake Levels, Vitamins",
+      "authors": "Food and Nutrition Board, National Academies",
+      "type": "reference table",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK278991/table/diet-treatment-obes.table17die/?report=objectonly"
+    },
+    "fda-biotin": {
+      "title": "Biotin Interference with Troponin Lab Tests",
+      "authors": "US Food and Drug Administration",
+      "type": "regulator notice",
+      "url": "https://www.fda.gov/medical-devices/in-vitro-diagnostics/biotin-interference-troponin-lab-tests-assays-subject-biotin-interference"
+    },
+    "burton1998": {
+      "title": "Human plasma and tissue alpha-tocopherol concentrations in response to supplementation with deuterated natural and synthetic vitamin E",
+      "authors": "Burton GW, Traber MG, Acuff RV, et al.",
+      "journal": "Am J Clin Nutr",
+      "year": 1998,
+      "type": "controlled human study (deuterium-labelled)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9537614/"
+    },
+    "leonard2004": {
+      "title": "Vitamin E bioavailability from fortified breakfast cereal is greater than that from encapsulated supplements",
+      "authors": "Leonard SW, Good CK, Gugger ET, Traber MG",
+      "journal": "Am J Clin Nutr",
+      "year": 2004,
+      "type": "controlled human study (n=5)",
+      "url": "https://natap.org/2004/feb/020204_04.htm",
+      "urlNote": "Summary page; original in Am J Clin Nutr 2004"
+    },
+    "jeanes2004": {
+      "title": "The absorption of vitamin E is influenced by the amount of fat in a meal and the food matrix",
+      "authors": "Jeanes YM, Hall WL, Ellard S, Lee E, Lodge JK",
+      "journal": "Br J Nutr",
+      "year": 2004,
+      "type": "RCT (4-way crossover, n=8)",
+      "url": "https://www.cambridge.org/core/journals/british-journal-of-nutrition/article/absorption-of-vitamin-e-is-influenced-by-the-amount-of-fat-in-a-meal-and-the-food-matrix/1484180217CCCB8252FFF11796FC33B2"
+    },
+    "efsa-vite-2024": {
+      "title": "Scientific opinion on the tolerable upper intake level for vitamin E",
+      "authors": "EFSA NDA Panel",
+      "journal": "EFSA Journal",
+      "year": 2024,
+      "type": "scientific opinion",
+      "url": "https://doi.org/10.2903/j.efsa.2024.8953"
+    },
+    "ods-vite-consumer": {
+      "title": "Vitamin E: Fact Sheet for Consumers",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/VitaminE-Consumer/"
+    },
+    "eu-432": {
+      "title": "Commission Regulation (EU) No 432/2012, Annex: list of permitted health claims",
+      "authors": "European Commission",
+      "year": 2012,
+      "type": "regulation",
+      "url": "https://www.legislation.gov.uk/eur/2012/432/annex",
+      "urlNote": "UK-retained copy of the EU list as adopted; the live EU list is the EU Register of nutrition and health claims"
+    },
+    "eu-register": {
+      "title": "EU Register of nutrition and health claims made on foods",
+      "authors": "European Commission",
+      "type": "regulation",
+      "url": "https://ec.europa.eu/food/food-feed-portal/screen/health-claims/eu-register"
+    },
+    "ods-iron": {
+      "title": "Iron: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+    },
+    "ods-thiamin": {
+      "title": "Thiamin: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Thiamin-HealthProfessional/"
+    },
+    "ods-riboflavin": {
+      "title": "Riboflavin: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Riboflavin-HealthProfessional/"
+    },
+    "ods-pantothenic": {
+      "title": "Pantothenic Acid: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/PantothenicAcid-HealthProfessional/"
+    },
+    "ods-biotin": {
+      "title": "Biotin: Fact Sheet for Health Professionals",
+      "authors": "NIH Office of Dietary Supplements",
+      "type": "authoritative overview",
+      "url": "https://ods.od.nih.gov/factsheets/Biotin-HealthProfessional/"
+    },
+    "nccih-coq10": {
+      "title": "Coenzyme Q10",
+      "authors": "NIH National Center for Complementary and Integrative Health",
+      "type": "authoritative overview",
+      "url": "https://www.nccih.nih.gov/health/coenzyme-q10"
+    },
+    "mantle2020": {
+      "title": "Bioavailability of Coenzyme Q10: An Overview of the Absorption Process and Subsequent Metabolism",
+      "authors": "Mantle D, Dybring A",
+      "journal": "Antioxidants (Basel)",
+      "year": 2020,
+      "type": "review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32380795/",
+      "conflictNote": "One author works for a CoQ10 manufacturer (Pharma Nord)."
+    },
+    "hathcock2006": {
+      "title": "Risk assessment for coenzyme Q10 (Ubiquinone)",
+      "authors": "Hathcock JN, Shao A",
+      "journal": "Regul Toxicol Pharmacol",
+      "year": 2006,
+      "type": "risk assessment",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/16814438/",
+      "urlNote": "Link not opened in research; check before going public.",
+      "conflictNote": "Authors worked for the Council for Responsible Nutrition, a supplement industry association."
+    },
+    "bfr-coq10": {
+      "title": "Coenzyme Q10: what is known about the health risks – and what isn't?",
+      "authors": "German Federal Institute for Risk Assessment (BfR)",
+      "type": "authoritative overview",
+      "url": "https://www.bfr.bund.de/cd/313955"
+    },
+    "efsa-coq10-2010": {
+      "title": "Scientific Opinion on the substantiation of health claims related to coenzyme Q10 pursuant to Article 13(1) of Regulation (EC) No 1924/2006",
+      "authors": "EFSA Panel on Dietetic Products, Nutrition and Allergies",
+      "journal": "EFSA Journal",
+      "year": 2010,
+      "type": "regulatory assessment",
+      "url": "https://www.efsa.europa.eu/fr/efsajournal/pub/1793"
+    }
+  },
+  "contexts": {
+    "coffee": {
+      "label": "Coffee",
+      "inputType": "times",
+      "activeComponent": "Polyphenols (chlorogenic acids). Caffeine is a separate, smaller effect on calcium and magnesium excretion.",
+      "rules": [
+        {
+          "type": "dailyNote",
+          "with": "calcium",
+          "why": "Each 6 fl oz cup of caffeinated coffee was linked to a calcium balance about 4.6 mg/day more negative, because caffeine slightly lowers calcium absorption efficiency. About 40 mg extra calcium per cup offsets it. This is a whole-day effect, not a timing one, so it never moves a supplement.",
+          "strength": "moderate",
+          "sources": [
+            "bargerlux1995"
+          ]
+        },
+        {
+          "type": "dailyNote",
+          "with": "magnesium",
+          "why": "Caffeine raises urinary excretion of calcium and magnesium for at least 3 hours after intake. The review found the effect does not fade with regular use. In younger adults with adequate calcium intake, increased absorption may compensate. Older women appear not to compensate as well.",
+          "strength": "moderate",
+          "sources": [
+            "massey1993"
+          ]
+        }
+      ]
+    },
+    "tea": {
+      "label": "Black or green tea",
+      "inputType": "times",
+      "activeComponent": "Polyphenols (tannins, catechins). Roughly twice the iron-blocking effect of coffee per cup.",
+      "rules": []
+    },
+    "herbal-tea": {
+      "label": "Herbal tea or cocoa",
+      "inputType": "times",
+      "activeComponent": "Polyphenols. Peppermint is close to black tea; chamomile is about half as strong.",
+      "rules": []
+    }
+  }
+}
