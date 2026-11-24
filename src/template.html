@@ -159,6 +159,9 @@ button, select, input { font: inherit; color: inherit; }
 .switch input:checked + span { background: var(--accent); }
 .switch input:checked + span::after { transform: translateX(18px); }
 .switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.cat-head { margin: 14px 2px 2px; }
+.cat-head h3 { margin: 0 0 2px; font-size: 1rem; }
+.cat-head p { margin: 0; color: var(--muted); font-size: 0.88rem; }
 .about { border-top: 1px solid var(--line); }
 .about > summary { list-style: none; cursor: pointer; padding: 10px 12px; font-size: 0.9rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
 .about > summary::-webkit-details-marker { display: none; }
@@ -261,6 +264,14 @@ const STR = {
   checkThese: "Check these",
   notes: "Notes",
   role: "Role in the body",
+  what: "What it is",
+  timingInfo: "Timing",
+  meds: "Medicines to check",
+  basicHead: "Other supplements",
+  basicLead: "Lightly researched: checked for medicine interactions and timing advice only. No form ratings or dose checks.",
+  basicTag: "Lightly researched",
+  basicNote: "No form rating or dose check for this one. See the details below for what was checked.",
+  notRated: "Not rated",
   euClaims: "Authorised EU health claims",
   about: n => `About ${n}`,
   sources: "Sources",
@@ -357,6 +368,8 @@ function resolveForm(supp, formId) {
     const order = { avoid: 0, neutral: 1, preferred: 2, required: 3 };
     let t = { ...supp.timing };
     for (const f of supp.forms.filter(f => f.listed && f.timingOverride)) if (order[f.timingOverride.withFood] > order[t.withFood]) t = { ...t, ...f.timingOverride };
+    const pe = supp.forms.find(f => f.listed && f.timingOverride && f.timingOverride.preferEarly);
+    if (pe && !t.preferEarly) t = { ...t, preferEarly: pe.timingOverride.preferEarly };
     return { form: null, label: `${supp.name} (blend)`, blend: true, timing: t };
   }
   const f = supp.forms.find(x => x.id === formId) || supp.forms.find(x => x.id === supp.defaultForm);
@@ -494,7 +507,8 @@ function explain({ items, day, candidates, best, medications, avoidPairs, pairs,
       }
       if (!reasons.length) {
         const mates = [...new Set(items.filter((_, j) => j !== i && best.assign[j].id === sl.id).map(x => x.supp.name))];
-        add(mates.length ? `No timing constraints. Placed with ${mates.join(", ")} so you have fewer times to remember.` : "No timing constraints.", []);
+        const lead = it.supp.basic ? "No timing evidence found for this one." : "No timing constraints.";
+        add(mates.length ? `${lead} Placed with ${mates.join(", ")} so you have fewer times to remember.` : lead, it.supp.basic ? it.supp.basic.sources : []);
       }
       const f = it.rf.form;
       const pct = pctDV(it.supp, it.partDose, region);
@@ -505,6 +519,7 @@ function explain({ items, day, candidates, best, medications, avoidPairs, pairs,
         dose: it.comps ? it.supp.components.filter(c => it.comps[c.id] != null).map(c => `${c.name.replace(/ \(.*\)/, "")} ${fmtNum(it.comps[c.id])} ${c.unit}`).join(" · ")
           : it.partDose != null ? `${fmtNum(it.partDose)} ${it.supp.doseUnit}` : "",
         pct,
+        basic: !!it.supp.basic,
         absorption: it.rf.blend ? "unclear" : f.absorption,
         isRef: !it.rf.blend && f.isReference,
         evidence: it.rf.blend ? null : f.evidence,
@@ -663,6 +678,9 @@ function sourceLabel(s) {
   if (s.type === "regulation") return /432/.test(s.title) ? "EU Reg. 432/2012" : /Register/.test(s.title) ? "EU claims register" : "EU Reg. 1169/2011";
   if (/Complementary and Integrative/.test(s.authors || "")) return `NCCIH: ${s.title}`;
   if (/\(BfR\)/.test(s.authors || "")) return "BfR (Germany)";
+  if (/Sloan Kettering/.test(s.authors || "")) return `MSK: ${s.title}`;
+  if (/MedlinePlus/.test(s.authors || "")) return `MedlinePlus: ${s.title}`;
+  if (/Health Library/.test(s.authors || "")) return `U of Michigan: ${s.title}`;
   if (/^EFSA/.test(s.authors || "") && s.year) return `EFSA ${s.year}`;
   const who = (s.authors || "").split(",")[0].replace(/ et al\.?$/, "").trim();
   return who && s.year ? `${who} ${s.year}` : s.title.split(":")[0];
@@ -729,7 +747,7 @@ function renderPlan() {
       for (const it of r.items) {
         const sub = [it.dose && `<span class="mono">${esc(it.dose)}</span>`, it.pct && `<span class="mono">${esc(it.pct)}</span>`, it.part].filter(Boolean).join(" · ");
         html += `<details class="dose-card"><summary><span class="name">${esc(it.name)}</span><span class="chev" aria-hidden="true">▶</span>
-          <span class="sub">${sub ? sub + " · " : ""}${chip(it.absorption, it.isRef)}</span></summary>
+          <span class="sub">${sub ? sub + " · " : ""}${it.basic ? `<span class="chip unclear">${STR.notRated}</span>` : chip(it.absorption, it.isRef)}</span></summary>
           <div class="detail"><div class="eyebrow">${STR.why}</div><ul class="why">${it.reasons.map(x => reasonHTML(x)).join("")}</ul>
           ${it.unsure ? `<div class="help">${esc(STR.notSureNote(it.name))}</div>` : ""}
           ${it.evidence ? `<div class="help">Form rating: ${it.isRef ? "reference form" : ABS[it.absorption].toLowerCase()}, evidence ${it.evidence}. ${srcLinks(it.formSources)}</div>` : ""}</div></details>`;
@@ -749,7 +767,8 @@ function renderPlan() {
 function renderCatalogue() {
   const reg = region();
   const root = $("#catalogue");
-  root.innerHTML = DATA.supplements.map(s => {
+  root.innerHTML = DATA.supplements.map((s, si) => {
+    const head = s.basic && !(DATA.supplements[si - 1] || {}).basic ? `<div class="cat-head"><h3>${STR.basicHead}</h3><p>${STR.basicLead}</p></div>` : "";
     const st = state.stack[s.id] || {};
     const on = !!st.on;
     const listed = s.forms.filter(f => f.listed);
@@ -768,10 +787,10 @@ function renderCatalogue() {
       const wd = st.weekday ?? parseISO(st.start || todayISO()).getDay();
       const wdNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       body = `<div class="supp-body">
-        <div class="field"><label for="form-${s.id}">Form on your label</label><select id="form-${s.id}" data-act="form" data-id="${s.id}">${opts}</select></div>
-        ${note}
+        ${s.basic ? `<div class="form-note">${STR.basicNote}</div>` : `<div class="field"><label for="form-${s.id}">Form on your label</label><select id="form-${s.id}" data-act="form" data-id="${s.id}">${opts}</select></div>
+        ${note}`}
         <div class="fields">
-          ${s.components ? compFields(s, st, reg) : `<div class="field"><label for="dose-${s.id}">Dose per day (optional)</label>
+          ${s.components ? compFields(s, st, reg) : s.basic ? "" : `<div class="field"><label for="dose-${s.id}">Dose per day (optional)</label>
             <div class="dose-in"><input id="dose-${s.id}" type="number" inputmode="decimal" min="0" step="any" value="${st.dose ?? ""}" data-act="dose" data-id="${s.id}" placeholder="—"><span class="unit">${esc(s.doseUnit)}</span></div>
             <span class="help" id="pct-${s.id}">${pct}</span></div>`}
           <div class="field"><label for="freq-${s.id}">How often</label><select id="freq-${s.id}" data-act="freq" data-id="${s.id}">
@@ -783,8 +802,8 @@ function renderCatalogue() {
         ${(s.timing.frequencyOptions || []).map(o => `<div class="help">${esc(o.label)}: ${esc(first(o.why))} ${srcLinks(o.sources)}</div>`).join("")}
       </div>`;
     }
-    const summary = on ? `${esc(resolveForm(s, formId).label)}${s.components ? s.components.filter(c => (st.comp || {})[c.id] != null).map(c => ` · <span class="mono">${c.name.replace(/ \(.*\)/, "")} ${fmtNum(st.comp[c.id])} ${esc(c.unit)}</span>`).join("") : st.dose ? ` · <span class="mono">${fmtNum(st.dose)} ${esc(s.doseUnit)}</span>` : ""}${(st.freq || "daily") !== "daily" ? " · " + (st.freq === "alternate" ? STR.alternate : STR.weekly).toLowerCase() : ""}` : esc(s.aliases.slice(0, 3).join(", "));
-    return `<div class="supp${on ? " on" : ""}"><div class="supp-head"><div class="txt"><div class="n">${esc(s.name)}</div><div class="s">${summary}</div></div>
+    const summary = on ? `${s.basic ? STR.basicTag : esc(resolveForm(s, formId).label)}${s.components ? s.components.filter(c => (st.comp || {})[c.id] != null).map(c => ` · <span class="mono">${c.name.replace(/ \(.*\)/, "")} ${fmtNum(st.comp[c.id])} ${esc(c.unit)}</span>`).join("") : st.dose ? ` · <span class="mono">${fmtNum(st.dose)} ${esc(s.doseUnit)}</span>` : ""}${(st.freq || "daily") !== "daily" ? " · " + (st.freq === "alternate" ? STR.alternate : STR.weekly).toLowerCase() : ""}` : esc(s.aliases.slice(0, 3).join(", "));
+    return `${head}<div class="supp${on ? " on" : ""}"><div class="supp-head"><div class="txt"><div class="n">${esc(s.name)}</div><div class="s">${summary}</div></div>
       <label class="switch"><input type="checkbox" id="on-${s.id}" data-act="on" data-id="${s.id}" ${on ? "checked" : ""} aria-label="Take ${esc(s.name)}"><span></span></label></div>${body}${aboutHTML(s)}</div>`;
   }).join("");
   root.querySelectorAll("details.about").forEach(el => el.addEventListener("toggle", () => { el.open ? openAbout.add(el.dataset.about) : openAbout.delete(el.dataset.about); }));
@@ -804,9 +823,12 @@ function aboutHTML(s) {
     ? `<div><h4>${STR.euClaims}</h4><div class="help">Quoted word for word from EU Reg. 432/2012. Allowed on products with enough of the nutrient. ${srcLinks(s.euClaims.sources)}</div></div>` +
       s.components.map(c => `<div class="sub"><strong>${esc(c.name)}</strong>${c.roleInBody ? `<p>${esc(c.roleInBody.text)} ${srcLinks(c.roleInBody.sources)}</p>` : ""}${c.euClaims && c.euClaims.claims.length ? `<ul class="claims">${c.euClaims.claims.map(x => `<li><q>${esc(x.text)}</q></li>`).join("")}</ul>` : ""}</div>`).join("")
     : s.euClaims ? `<div><h4>${STR.euClaims}</h4>${claimsHTML(s.euClaims)}</div>` : "";
+  const basic = s.basic ? `<div><h4>${STR.what}</h4><p>${esc(s.basic.what)}</p></div><div><h4>${STR.timingInfo}</h4><p>${esc(s.basic.timing)} ${srcLinks(s.basic.sources)}</p></div>` : "";
+  const medRules = s.rules.filter(r => r.type === "medication" && DATA.externalRefs[r.with]);
+  const meds = medRules.length ? `<div><h4>${STR.meds}</h4><ul class="claims">${medRules.map(r => `<li><strong>${esc(DATA.externalRefs[r.with].label)}.</strong> ${esc(r.why)} ${srcLinks(r.sources)}</li>`).join("")}</ul></div>` : "";
   const notes = (s.notes || []).length ? `<div><h4>${STR.notes}</h4><ul class="claims">${s.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>` : "";
-  if (!role && !claims && !notes) return "";
-  return `<details class="about" data-about="${s.id}"${openAbout.has(s.id) ? " open" : ""}><summary>${STR.about(s.name)}</summary><div class="about-body">${role}${claims}${notes}</div></details>`;
+  if (!role && !claims && !notes && !basic && !meds) return "";
+  return `<details class="about" data-about="${s.id}"${openAbout.has(s.id) ? " open" : ""}><summary>${STR.about(s.name)}</summary><div class="about-body">${basic}${role}${claims}${meds}${notes}</div></details>`;
 }
 const openAbout = new Set();
 function compFields(s, st, reg) {
