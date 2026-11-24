@@ -293,7 +293,7 @@ const toH = t => { const [h, m] = t.split(":").map(Number); return h + m / 60; }
 const fmt = h => { const m = Math.round(h * 60); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
 const round15 = h => Math.round(h * 4) / 4;
 const first = s => s.split(". ")[0].replace(/\.$/, "") + ".";
-const WEIGHTS = { withFood: 2, preferredTime: 1, pair: 3, apart: -1.5, mainMeal: 1, slotUsed: -0.5, generatedSlot: -0.5 };
+const WEIGHTS = { withFood: 2, preferredTime: 1, pair: 3, apart: -1.5, late: -1.5, mainMeal: 1, slotUsed: -0.5, generatedSlot: -0.5 };
 const RULES = [];
 for (const s of DATA.supplements) for (const r of s.rules) RULES.push({ ...r, owner: s.id });
 for (const [cid, c] of Object.entries(CTX)) for (const r of c.rules) RULES.push({ ...r, owner: cid });
@@ -398,6 +398,7 @@ function solve(settings, stack, medications, region) {
   const softApart = [];
   for (const r of RULES.filter(r => r.type === "preferApart")) for (const a of idx(r.owner)) for (const b of idx(r.with)) softApart.push({ a, b, rule: r });
 
+  const isLate = sl => sl.t > toH(settings.bedtime) - (TD.lateWindowHours ?? 5) + 1e-9;
   const unary = (i, sl) => {
     const it = items[i], t = it.timing;
     let s = -sl.t * 0.001;
@@ -406,6 +407,7 @@ function solve(settings, stack, medications, region) {
     if (t.withFood === "avoid" && sl.empty) s += WEIGHTS.withFood;
     if ((t.preferredSlots || []).includes("morning") && sl.t < 12) s += WEIGHTS.preferredTime;
     if (wantsFood && it.supp.fatSoluble && sl.mealId && sl.mealId === settings.mainMeal) s += WEIGHTS.mainMeal;
+    if (t.preferEarly && isLate(sl)) s += WEIGHTS.late;
     return s;
   };
   const assign = new Array(items.length);
@@ -447,6 +449,7 @@ function solve(settings, stack, medications, region) {
 }
 
 function explain({ items, day, candidates, best, medications, avoidPairs, pairs, softApart, region, settings }) {
+  const isLate = sl => sl.t > toH(settings.bedtime) - (TD.lateWindowHours ?? 5) + 1e-9;
   const REG = DATA.meta.regions[region];
   const { slots, drinks } = day;
   const out = { schedule: [], unplaced: [], warnings: [], notes: [] };
@@ -482,6 +485,9 @@ function explain({ items, day, candidates, best, medications, avoidPairs, pairs,
           ? `Close to ${o.supp.name}, because no other time fit without adding one. ${p.rule.why}`
           : `At least ${TD.defaultAvoidGapHours} h from ${o.supp.name} where possible. ${p.rule.why} ${p.rule.evidenceNote || ""}`.trim(), p.rule.sources);
       }
+      if (t.preferEarly) add(isLate(sl)
+        ? `Later in the day than preferred, because no earlier time fit. ${t.preferEarly.why}`
+        : `Kept away from the evening. ${t.preferEarly.why}`, t.preferEarly.sources);
       for (const r of RULES.filter(r => r.type === "noInteraction" && (r.owner === it.id || r.with === it.id))) {
         const other = r.owner === it.id ? r.with : r.owner;
         if (items.some((x, j) => x.id === other && Math.abs(best.assign[j].t - sl.t) < TD.defaultAvoidGapHours)) add(`Fine together with ${SUPP[other].name}. ${r.why} ${r.evidenceNote || ""}`.trim(), r.sources);
